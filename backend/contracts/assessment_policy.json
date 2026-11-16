@@ -1,0 +1,94 @@
+{
+  "version": "behavior-demo-v1",
+  "algorithmVersion": "behavior-assessment-v3.0",
+  "assessmentSchemaVersion": 1,
+  "threshold": 40,
+  "budgets": {
+    "AMOUNT": 40,
+    "ACTIVITY": 40,
+    "TIME": 10,
+    "COUNTERPARTY": 10
+  },
+  "order": [
+    "AMOUNT_DEVIATION",
+    "PROFILE_FREQUENCY",
+    "UNUSUAL_TIME",
+    "COUNTERPARTY_NOVELTY",
+    "ACTIVITY_CHANGE"
+  ],
+  "rules": {
+    "AMOUNT_DEVIATION": {
+      "weight": 40,
+      "group": "AMOUNT",
+      "parameters": {
+        "policyVersion": "behavior-demo-v1",
+        "enabled": true,
+        "min_samples": 20,
+        "min_active_days": 7,
+        "mad_scale": "1.4826",
+        "mad_multiplier": "3",
+        "iqr_multiplier": "1.5",
+        "constant_fraction": "0.25"
+      }
+    },
+    "PROFILE_FREQUENCY": {
+      "weight": 40,
+      "group": "ACTIVITY",
+      "parameters": {
+        "policyVersion": "behavior-demo-v1",
+        "enabled": true,
+        "min_reference_hours": 14,
+        "min_confirmed_days": 14,
+        "mad_scale": "1.4826",
+        "mad_multiplier": "3",
+        "iqr_multiplier": "1.5",
+        "constant_add": 2
+      }
+    },
+    "UNUSUAL_TIME": {
+      "weight": 10,
+      "group": "TIME",
+      "parameters": {
+        "policyVersion": "behavior-demo-v1",
+        "enabled": true,
+        "min_samples": 100,
+        "min_active_days": 14,
+        "min_confirmed_days": 28,
+        "alpha": "1",
+        "hour_probability": "0.01",
+        "weekday_probability": "0.03"
+      }
+    },
+    "COUNTERPARTY_NOVELTY": {
+      "weight": 10,
+      "group": "COUNTERPARTY",
+      "parameters": {
+        "policyVersion": "behavior-demo-v1",
+        "enabled": true,
+        "min_samples": 20,
+        "min_active_days": 7,
+        "min_known_fraction": "0.90"
+      }
+    },
+    "ACTIVITY_CHANGE": {
+      "weight": 40,
+      "group": "ACTIVITY",
+      "parameters": {
+        "policyVersion": "behavior-demo-v1",
+        "enabled": true,
+        "min_short": 5,
+        "min_prior": 20,
+        "min_prior_active_days": 7,
+        "lower_ratio": "0.25",
+        "upper_ratio": "4"
+      }
+    }
+  },
+  "aggregation": "MAX_PER_GROUP; ties by declared order; no threshold uplift",
+  "scoreMeaning": "DESCRIPTIVE_DEVIATION_NOT_FRAUD_PROBABILITY",
+  "priorities": {
+    "LOW": 40,
+    "MEDIUM": 60,
+    "HIGH": 80
+  }
+}

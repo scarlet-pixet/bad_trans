@@ -1,0 +1,564 @@
+name: bad_trans
+services:
+  analysis-db:
+    environment:
+      POSTGRES_DB: bank_analysis
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_USER: bank_analysis
+    healthcheck:
+      interval: 3s
+      retries: 30
+      test:
+      - CMD-SHELL
+      - PGPASSWORD="$$POSTGRES_PASSWORD" psql -h 127.0.0.1 -U "$$POSTGRES_USER" -d
+        "$$POSTGRES_DB" -v ON_ERROR_STOP=1 -Atqc "SELECT 1" | grep -qx 1
+      timeout: 3s
+    image: postgres:17-alpine
+    ports:
+    - host_ip: 127.0.0.1
+      mode: ingress
+      protocol: tcp
+      published: '57743'
+      target: 5432
+    restart: on-failure:5
+    volumes:
+    - source: analysis-data
+      target: /var/lib/postgresql/data
+      type: volume
+      volume: {}
+    - bind:
+        create_host_path: true
+      read_only: true
+      source: ./infra/postgres/analysis/001_initial.sql
+      target: /docker-entrypoint-initdb.d/001.sql
+      type: bind
+    - bind:
+        create_host_path: true
+      read_only: true
+      source: ./infra/postgres/analysis/002_demo.sql
+      target: /docker-entrypoint-initdb.d/002.sql
+      type: bind
+    - bind:
+        create_host_path: true
+      read_only: true
+      source: ./infra/postgres/analysis/003_fixtures.sql
+      target: /docker-entrypoint-initdb.d/003.sql
+      type: bind
+    - type: bind
+      source: ./infra/postgres/analysis/004_delivery.sql
+      target: /docker-entrypoint-initdb.d/004.sql
+      read_only: true
+  analysis-service:
+    command:
+    - python
+    - -m
+    - backend.infrastructure.server
+    depends_on:
+      analysis-db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://bank_analysis:${DB_PASSWORD}@analysis-db:5432/bank_analysis
+      KAFKA_BOOTSTRAP: kafka:9092
+      SERVICE_TOKEN: ${SERVICE_TOKEN}
+      CASE_GRPC: case-service:50051
+      TRANSACTION_GRPC: transaction-service:50051
+      ENABLE_TEST_FAULTS: ${ENABLE_TEST_FAULTS:-0}
+      RPC_RETRY_ATTEMPTS: '3'
+      RPC_READ_TIMEOUT: '0.8'
+      SERVICE_NAME: analysis
+      PROFILE_REFRESH_SECONDS: ${PROFILE_REFRESH_SECONDS:-300}
+      PROFILE_POLL_SECONDS: ${PROFILE_POLL_SECONDS:-30}
+      PROFILE_REFRESH_BATCH: ${PROFILE_REFRESH_BATCH:-2}
+      PROFILE_REFRESH_BUDGET_SECONDS: ${PROFILE_REFRESH_BUDGET_SECONDS:-20}
+    healthcheck:
+      interval: 3s
+      retries: 30
+      test:
+      - CMD
+      - python
+      - -m
+      - backend.infrastructure.healthcheck
+      timeout: 3s
+    image: bad_trans-analysis-service:local
+    ports:
+    - host_ip: 127.0.0.1
+      mode: ingress
+      protocol: tcp
+      published: '51053'
+      target: 50051
+    restart: on-failure:5
+    pull_policy: never
+    build:
+      context: .
+      dockerfile: Dockerfile
+  auth-db:
+    environment:
+      POSTGRES_DB: bank_auth
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?Run tools/init_env.ps1}
+      POSTGRES_USER: bank_auth
+    healthcheck:
+      interval: 3s
+      retries: 30
+      test:
+      - CMD-SHELL
+      - PGPASSWORD="$$POSTGRES_PASSWORD" psql -h 127.0.0.1 -U "$$POSTGRES_USER" -d
+        "$$POSTGRES_DB" -v ON_ERROR_STOP=1 -Atqc "SELECT 1" | grep -qx 1
+      timeout: 3s
+    image: postgres:17-alpine
+    ports:
+    - host_ip: 127.0.0.1
+      mode: ingress
+      protocol: tcp
+      published: '57741'
+      target: 5432
+    restart: on-failure:5
+    volumes:
+    - source: auth-data
+      target: /var/lib/postgresql/data
+      type: volume
+      volume: {}
+    - bind:
+        create_host_path: true
+      read_only: true
+      source: ./infra/postgres/auth/001_initial.sql
+      target: /docker-entrypoint-initdb.d/001.sql
+      type: bind
+    - bind:
+        create_host_path: true
+      read_only: true
+      source: ./infra/postgres/auth/002_demo.sql
+      target: /docker-entrypoint-initdb.d/002.sql
+      type: bind
+  auth-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command:
+    - uvicorn
+    - backend.services.auth.transport.http:app
+    - --host
+    - 0.0.0.0
+    - --port
+    - '8001'
+    depends_on:
+      auth-db:
+        condition: service_healthy
+        required: true
+      redis:
+        condition: service_healthy
+        required: true
+    environment:
+      AUTH_DATABASE_URL: postgresql://bank_auth:${DB_PASSWORD}@auth-db:5432/bank_auth
+      JWT_SECRET: ${JWT_SECRET:?Run tools/init_env.ps1}
+      SESSION_REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
+      SESSION_TTL: '1800'
+      SERVICE_TOKEN: ${SERVICE_TOKEN}
+      SERVICE_NAME: auth
+    healthcheck:
+      interval: 3s
+      retries: 30
+      test:
+      - CMD
+      - python
+      - -c
+      - import urllib.request; urllib.request.urlopen('http://127.0.0.1:8001/health',
+        timeout=2)
+      timeout: 3s
+    image: bad_trans-auth-service:local
+    ports:
+    - host_ip: 127.0.0.1
+      mode: ingress
+      protocol: tcp
+      published: '18110'
+      target: 8001
+    - host_ip: 127.0.0.1
+      published: '51051'
+      target: 50051
+      protocol: tcp
+    restart: on-failure:5
+    pull_policy: never
+  cache:
+    command:
+    - redis-server
+    - --appendonly
+    - 'no'
+    healthcheck:
+      interval: 3s
+      retries: 30
+      test:
+      - CMD
+      - redis-cli
+      - ping
+      timeout: 2s
+    image: redis:7.4-alpine
+    ports:
+    - host_ip: 127.0.0.1
+      mode: ingress
+      protocol: tcp
+      published: '57790'
+      target: 6379
+    restart: on-failure:5
+  case-db:
+    environment:
+      POSTGRES_DB: bank_case
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_USER: bank_case
+    healthcheck:
+      interval: 3s
+      retries: 30
+      test:
+      - CMD-SHELL
+      - PGPASSWORD="$$POSTGRES_PASSWORD" psql -h 127.0.0.1 -U "$$POSTGRES_USER" -d
+        "$$POSTGRES_DB" -v ON_ERROR_STOP=1 -Atqc "SELECT 1" | grep -qx 1
+      timeout: 3s
+    image: postgres:17-alpine
+    ports:
+    - host_ip: 127.0.0.1
+      mode: ingress
+      protocol: tcp
+      published: '57744'
+      target: 5432
+    restart: on-failure:5
+    volumes:
+    - source: case-data
+      target: /var/lib/postgresql/data
+      type: volume
+      volume: {}
+    - bind:
+        create_host_path: true
+      read_only: true
+      source: ./infra/postgres/case/001_initial.sql
+      target: /docker-entrypoint-initdb.d/001.sql
+      type: bind
+    - bind:
+        create_host_path: true
+      read_only: true
+      source: ./infra/postgres/case/002_demo.sql
+      target: /docker-entrypoint-initdb.d/002.sql
+      type: bind
+    - bind:
+        create_host_path: true
+      read_only: true
+      source: ./infra/postgres/case/003_fixtures.sql
+      target: /docker-entrypoint-initdb.d/003.sql
+      type: bind
+    - type: bind
+      source: ./infra/postgres/case/004_delivery.sql
+      target: /docker-entrypoint-initdb.d/004.sql
+      read_only: true
+  case-service:
+    command:
+    - python
+    - -m
+    - backend.infrastructure.server
+    depends_on:
+      case-db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://bank_case:${DB_PASSWORD}@case-db:5432/bank_case
+      KAFKA_BOOTSTRAP: kafka:9092
+      ANALYSIS_GRPC: analysis-service:50051
+      SERVICE_TOKEN: ${SERVICE_TOKEN}
+      REPORT_SIGNING_KEY: ${REPORT_SIGNING_KEY:?Run tools/init_env.ps1}
+      CASE_GRPC: case-service:50051
+      TRANSACTION_GRPC: transaction-service:50051
+      AUTH_URL: http://auth-service:8001
+      ENABLE_TEST_FAULTS: ${ENABLE_TEST_FAULTS:-0}
+      RPC_RETRY_ATTEMPTS: '3'
+      RPC_READ_TIMEOUT: '0.8'
+      SERVICE_NAME: case
+    healthcheck:
+      interval: 3s
+      retries: 30
+      test:
+      - CMD
+      - python
+      - -m
+      - backend.infrastructure.healthcheck
+      timeout: 3s
+    image: bad_trans-case-service:local
+    ports:
+    - host_ip: 127.0.0.1
+      mode: ingress
+      protocol: tcp
+      published: '51054'
+      target: 50051
+    restart: on-failure:5
+    pull_policy: never
+    build:
+      context: .
+      dockerfile: Dockerfile
+  frontend:
+    command:
+    - streamlit
+    - run
+    - frontend/app.py
+    - --server.address
+    - 0.0.0.0
+    - --server.port
+    - '8501'
+    - --browser.gatherUsageStats
+    - 'false'
+    depends_on:
+      gateway:
+        condition: service_started
+    environment:
+      GRAPHQL_URL: http://gateway:8000/graphql
+      APP_TITLE: Bad Trans — анализ транзакционной активности
+    healthcheck:
+      interval: 5s
+      retries: 20
+      test:
+      - CMD
+      - python
+      - -c
+      - import urllib.request; urllib.request.urlopen('http://127.0.0.1:8501/_stcore/health',timeout=2)
+      timeout: 3s
+    image: bad_trans-frontend:local
+    ports:
+    - host_ip: 127.0.0.1
+      mode: ingress
+      protocol: tcp
+      published: '18500'
+      target: 8501
+    restart: on-failure:5
+    pull_policy: never
+    build:
+      context: .
+      dockerfile: Dockerfile
+  gateway:
+    command:
+    - uvicorn
+    - backend.gateway.app:app
+    - --host
+    - 0.0.0.0
+    - --port
+    - '8000'
+    environment:
+      AUTH_URL: http://auth-service:8001
+      ANALYSIS_GRPC: analysis-service:50051
+      CASE_GRPC: case-service:50051
+      SERVICE_TOKEN: ${SERVICE_TOKEN}
+      REPORT_SIGNING_KEY: ${REPORT_SIGNING_KEY:?Run tools/init_env.ps1}
+      TRANSACTION_GRPC: transaction-service:50051
+      CACHE_TTL: '30'
+      CACHE_URL: redis://cache:6379/0
+      RPC_RETRY_ATTEMPTS: '3'
+      RPC_READ_TIMEOUT: '0.8'
+      SERVICE_NAME: gateway
+    healthcheck:
+      interval: 5s
+      retries: 30
+      test:
+      - CMD
+      - python
+      - -c
+      - import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/livez',timeout=2)
+      timeout: 3s
+    image: bad_trans-gateway:local
+    ports:
+    - host_ip: 127.0.0.1
+      mode: ingress
+      protocol: tcp
+      published: '18100'
+      target: 8000
+    restart: on-failure:5
+    pull_policy: never
+    build:
+      context: .
+      dockerfile: Dockerfile
+  kafka:
+    environment:
+      CLUSTER_ID: MkU3OEVBNTcwNTJENDM2Qk
+      KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka:9092,EXTERNAL://127.0.0.1:19100
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: '0'
+      KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
+      KAFKA_LISTENERS: INTERNAL://:9092,EXTERNAL://:19100,CONTROLLER://:9093
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INTERNAL:PLAINTEXT,EXTERNAL:PLAINTEXT,CONTROLLER:PLAINTEXT
+      KAFKA_LOG_DIRS: /var/lib/kafka/data
+      KAFKA_NODE_ID: '1'
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: '1'
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: '1'
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: '1'
+    healthcheck:
+      interval: 10s
+      retries: 30
+      test:
+      - CMD-SHELL
+      - /opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --list >/dev/null
+      timeout: 10s
+    image: apache/kafka:4.0.0
+    ports:
+    - host_ip: 127.0.0.1
+      mode: ingress
+      protocol: tcp
+      published: '19100'
+      target: 19100
+    restart: on-failure:5
+    volumes:
+    - source: kafka-data
+      target: /var/lib/kafka/data
+      type: volume
+      volume: {}
+  kafka-ui:
+    depends_on:
+      kafka:
+        condition: service_healthy
+        required: true
+    environment:
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9092
+      KAFKA_CLUSTERS_0_NAME: bad_trans
+    image: provectuslabs/kafka-ui:v0.7.2
+    ports:
+    - host_ip: 127.0.0.1
+      mode: ingress
+      protocol: tcp
+      published: '18190'
+      target: 8080
+    restart: on-failure:5
+  pgadmin:
+    environment:
+      PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED: 'False'
+      PGADMIN_CONFIG_SESSION_COOKIE_NAME: '''pga4_session_bad_trans'''
+      PGADMIN_DEFAULT_EMAIL: admin@bad-trans.example
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD:?Run tools/init_env.ps1}
+    image: dpage/pgadmin4:9.8
+    ports:
+    - host_ip: 127.0.0.1
+      mode: ingress
+      protocol: tcp
+      published: '18180'
+      target: 80
+    restart: on-failure:5
+    volumes:
+    - source: pgadmin-data
+      target: /var/lib/pgadmin
+      type: volume
+      volume: {}
+    - bind:
+        create_host_path: true
+      read_only: true
+      source: ./infra/pgadmin/servers.json
+      target: /pgadmin4/servers.json
+      type: bind
+  redis:
+    command:
+    - sh
+    - -c
+    - exec redis-server --appendonly yes --requirepass "$$REDIS_PASSWORD"
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?Run tools/init_env.ps1}
+    healthcheck:
+      interval: 3s
+      retries: 30
+      test:
+      - CMD-SHELL
+      - redis-cli -a "$$REDIS_PASSWORD" ping | grep -q PONG
+      timeout: 3s
+    image: redis:7.4-alpine
+    ports:
+    - host_ip: 127.0.0.1
+      mode: ingress
+      protocol: tcp
+      published: '57789'
+      target: 6379
+    restart: on-failure:5
+    volumes:
+    - source: redis-data
+      target: /data
+      type: volume
+      volume: {}
+  transaction-db:
+    environment:
+      POSTGRES_DB: bank_transaction
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_USER: bank_transaction
+    healthcheck:
+      interval: 3s
+      retries: 30
+      test:
+      - CMD-SHELL
+      - PGPASSWORD="$$POSTGRES_PASSWORD" psql -h 127.0.0.1 -U "$$POSTGRES_USER" -d
+        "$$POSTGRES_DB" -v ON_ERROR_STOP=1 -Atqc "SELECT 1" | grep -qx 1
+      timeout: 3s
+    image: postgres:17-alpine
+    ports:
+    - host_ip: 127.0.0.1
+      mode: ingress
+      protocol: tcp
+      published: '57742'
+      target: 5432
+    restart: on-failure:5
+    volumes:
+    - source: transaction-data
+      target: /var/lib/postgresql/data
+      type: volume
+      volume: {}
+    - bind:
+        create_host_path: true
+      read_only: true
+      source: ./infra/postgres/transaction/001_initial.sql
+      target: /docker-entrypoint-initdb.d/001.sql
+      type: bind
+    - bind:
+        create_host_path: true
+      read_only: true
+      source: ./infra/postgres/transaction/002_demo.sql
+      target: /docker-entrypoint-initdb.d/002.sql
+      type: bind
+    - bind:
+        create_host_path: true
+      read_only: true
+      source: ./infra/postgres/transaction/003_fixtures.sql
+      target: /docker-entrypoint-initdb.d/003.sql
+      type: bind
+  transaction-service:
+    command:
+    - python
+    - -m
+    - backend.infrastructure.server
+    depends_on:
+      transaction-db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://bank_transaction:${DB_PASSWORD}@transaction-db:5432/bank_transaction
+      KAFKA_BOOTSTRAP: kafka:9092
+      SERVICE_TOKEN: ${SERVICE_TOKEN}
+      ENABLE_TEST_FAULTS: ${ENABLE_TEST_FAULTS:-0}
+      RPC_RETRY_ATTEMPTS: '3'
+      RPC_READ_TIMEOUT: '0.8'
+      SERVICE_NAME: transaction
+      CASE_GRPC: case-service:50051
+      TRANSACTION_GRPC: transaction-service:50051
+    healthcheck:
+      interval: 3s
+      retries: 30
+      test:
+      - CMD
+      - python
+      - -m
+      - backend.infrastructure.healthcheck
+      timeout: 3s
+    image: bad_trans-transaction-service:local
+    ports:
+    - host_ip: 127.0.0.1
+      mode: ingress
+      protocol: tcp
+      published: '51052'
+      target: 50051
+    restart: on-failure:5
+    pull_policy: never
+    build:
+      context: .
+      dockerfile: Dockerfile
+volumes:
+  analysis-data: {}
+  auth-data: {}
+  case-data: {}
+  kafka-data: {}
+  pgadmin-data: {}
+  redis-data: {}
+  transaction-data: {}

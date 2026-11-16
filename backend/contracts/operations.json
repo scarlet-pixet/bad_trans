@@ -1,0 +1,335 @@
+{
+  "me": {
+    "service": "auth",
+    "method": "GetCurrentUser",
+    "request": "GetCurrentUserRequest",
+    "response": "GetCurrentUserResponse",
+    "kind": "Query",
+    "output": "User!",
+    "scenario": "SC01"
+  },
+  "clients": {
+    "service": "transaction",
+    "method": "SearchClients",
+    "request": "SearchClientsRequest",
+    "response": "SearchClientsResponse",
+    "kind": "Query",
+    "output": "ClientPage!",
+    "scenario": "SC10"
+  },
+  "transactions": {
+    "service": "transaction",
+    "method": "SearchTransactions",
+    "request": "SearchTransactionsRequest",
+    "response": "SearchTransactionsResponse",
+    "kind": "Query",
+    "output": "TransactionPage!",
+    "scenario": "SC02, SC10"
+  },
+  "transaction": {
+    "service": "transaction",
+    "method": "GetTransaction",
+    "request": "GetTransactionRequest",
+    "response": "GetTransactionResponse",
+    "kind": "Query",
+    "output": "Transaction",
+    "scenario": "SC04, SC07"
+  },
+  "clientActivity": {
+    "service": "analysis",
+    "method": "GetClientActivity",
+    "request": "GetClientActivityRequest",
+    "response": "GetClientActivityResponse",
+    "kind": "Query",
+    "output": "ClientActivity!",
+    "scenario": "SC10"
+  },
+  "profile": {
+    "service": "analysis",
+    "method": "GetProfile",
+    "request": "GetProfileRequest",
+    "response": "GetProfileResponse",
+    "kind": "Query",
+    "output": "BehaviorProfile",
+    "scenario": "SC03–05"
+  },
+  "analysisResult": {
+    "service": "analysis",
+    "method": "GetResult",
+    "request": "GetResultRequest",
+    "response": "GetResultResponse",
+    "kind": "Query",
+    "output": "AnalysisResult",
+    "scenario": "SC04, SC07"
+  },
+  "analysisRun": {
+    "service": "analysis",
+    "method": "GetRun",
+    "request": "GetRunRequest",
+    "response": "GetRunResponse",
+    "kind": "Query",
+    "output": "AnalysisRun",
+    "scenario": "SC03–05"
+  },
+  "compareRuns": {
+    "service": "analysis",
+    "method": "CompareRuns",
+    "request": "CompareRunsRequest",
+    "response": "CompareRunsResponse",
+    "kind": "Query",
+    "output": "RunComparison!",
+    "scenario": "SC05"
+  },
+  "ruleVersions": {
+    "service": "analysis",
+    "method": "ListRuleVersions",
+    "request": "ListRuleVersionsRequest",
+    "response": "ListRuleVersionsResponse",
+    "kind": "Query",
+    "output": "[RuleVersion!]!",
+    "scenario": "SC05"
+  },
+  "reviewCases": {
+    "service": "case",
+    "method": "SearchCases",
+    "request": "SearchCasesRequest",
+    "response": "SearchCasesResponse",
+    "kind": "Query",
+    "output": "CasePage!",
+    "scenario": "SC06, SC09"
+  },
+  "reviewCase": {
+    "service": "case",
+    "method": "GetCase",
+    "request": "GetCaseRequest",
+    "response": "GetCaseResponse",
+    "kind": "Query",
+    "output": "ReviewCase",
+    "scenario": "SC07–08"
+  },
+  "report": {
+    "service": "case",
+    "method": "GetReport",
+    "request": "GetReportRequest",
+    "response": "GetReportResponse",
+    "kind": "Query",
+    "output": "Report",
+    "scenario": "SC09"
+  },
+  "exportReport": {
+    "service": "case",
+    "method": "ExportReport",
+    "request": "ExportReportRequest",
+    "response": "ExportReportResponse",
+    "kind": "Query",
+    "output": "ReportExport!",
+    "scenario": "SC09"
+  },
+  "notifications": {
+    "service": "case",
+    "method": "ListNotifications",
+    "request": "ListNotificationsRequest",
+    "response": "ListNotificationsResponse",
+    "kind": "Query",
+    "output": "NotificationPage!",
+    "scenario": "SC06–09"
+  },
+  "signIn": {
+    "service": "auth",
+    "method": "Login",
+    "request": "LoginRequest",
+    "response": "LoginResponse",
+    "kind": "Mutation",
+    "output": "AuthPayload!",
+    "scenario": "SC01"
+  },
+  "signOut": {
+    "service": "auth",
+    "method": "Logout",
+    "request": "LogoutRequest",
+    "response": "LogoutResponse",
+    "kind": "Mutation",
+    "output": "Boolean!",
+    "scenario": "SC01"
+  },
+  "registerStaff": {
+    "service": "auth",
+    "method": "RegisterStaff",
+    "request": "RegisterStaffRequest",
+    "response": "RegisterStaffResponse",
+    "kind": "Mutation",
+    "output": "User!",
+    "scenario": "SC01"
+  },
+  "blockStaff": {
+    "service": "auth",
+    "method": "BlockStaff",
+    "request": "BlockStaffRequest",
+    "response": "BlockStaffResponse",
+    "kind": "Mutation",
+    "output": "User!",
+    "scenario": "SC01"
+  },
+  "changeStaffRole": {
+    "service": "auth",
+    "method": "ChangeStaffRole",
+    "request": "ChangeStaffRoleRequest",
+    "response": "ChangeStaffRoleResponse",
+    "kind": "Mutation",
+    "output": "User!",
+    "scenario": "SC01"
+  },
+  "createClient": {
+    "service": "transaction",
+    "method": "CreateClient",
+    "request": "CreateClientRequest",
+    "response": "CreateClientResponse",
+    "kind": "Mutation",
+    "output": "Client!",
+    "scenario": "SC02"
+  },
+  "openAccount": {
+    "service": "transaction",
+    "method": "OpenAccount",
+    "request": "OpenAccountRequest",
+    "response": "OpenAccountResponse",
+    "kind": "Mutation",
+    "output": "Account!",
+    "scenario": "SC02"
+  },
+  "registerCounterparty": {
+    "service": "transaction",
+    "method": "RegisterCounterparty",
+    "request": "RegisterCounterpartyRequest",
+    "response": "RegisterCounterpartyResponse",
+    "kind": "Mutation",
+    "output": "Counterparty!",
+    "scenario": "SC02"
+  },
+  "importTransactions": {
+    "service": "transaction",
+    "method": "ImportTransactions",
+    "request": "ImportTransactionsRequest",
+    "response": "ImportTransactionsResponse",
+    "kind": "Mutation",
+    "output": "ImportResult!",
+    "scenario": "SC02"
+  },
+  "registerTransaction": {
+    "service": "transaction",
+    "method": "RegisterTransaction",
+    "request": "RegisterTransactionRequest",
+    "response": "RegisterTransactionResponse",
+    "kind": "Mutation",
+    "output": "Transaction!",
+    "scenario": "SC02"
+  },
+  "buildProfile": {
+    "service": "analysis",
+    "method": "StartProfile",
+    "request": "StartProfileRequest",
+    "response": "StartProfileResponse",
+    "kind": "Mutation",
+    "output": "AnalysisRun!",
+    "scenario": "SC03"
+  },
+  "analyzeTransaction": {
+    "service": "analysis",
+    "method": "StartAnalysis",
+    "request": "StartAnalysisRequest",
+    "response": "StartAnalysisResponse",
+    "kind": "Mutation",
+    "output": "AnalysisRun!",
+    "scenario": "SC04"
+  },
+  "publishRuleVersion": {
+    "service": "analysis",
+    "method": "PublishRuleVersion",
+    "request": "PublishRuleVersionRequest",
+    "response": "PublishRuleVersionResponse",
+    "kind": "Mutation",
+    "output": "RuleVersion!",
+    "scenario": "SC05"
+  },
+  "reanalyzePeriod": {
+    "service": "analysis",
+    "method": "ReanalyzePeriod",
+    "request": "ReanalyzePeriodRequest",
+    "response": "ReanalyzePeriodResponse",
+    "kind": "Mutation",
+    "output": "AnalysisRun!",
+    "scenario": "SC05"
+  },
+  "distributeCases": {
+    "service": "case",
+    "method": "DistributeCases",
+    "request": "DistributeCasesRequest",
+    "response": "DistributeCasesResponse",
+    "kind": "Mutation",
+    "output": "DistributionResult!",
+    "scenario": "SC06"
+  },
+  "takeCase": {
+    "service": "case",
+    "method": "TakeCase",
+    "request": "TakeCaseRequest",
+    "response": "TakeCaseResponse",
+    "kind": "Mutation",
+    "output": "ReviewCase!",
+    "scenario": "SC06"
+  },
+  "addCaseComment": {
+    "service": "case",
+    "method": "AddCaseComment",
+    "request": "AddCaseCommentRequest",
+    "response": "AddCaseCommentResponse",
+    "kind": "Mutation",
+    "output": "ReviewCase!",
+    "scenario": "SC07"
+  },
+  "escalateCase": {
+    "service": "case",
+    "method": "EscalateCase",
+    "request": "EscalateCaseRequest",
+    "response": "EscalateCaseResponse",
+    "kind": "Mutation",
+    "output": "ReviewCase!",
+    "scenario": "SC07"
+  },
+  "closeCase": {
+    "service": "case",
+    "method": "CloseCase",
+    "request": "CloseCaseRequest",
+    "response": "CloseCaseResponse",
+    "kind": "Mutation",
+    "output": "ReviewCase!",
+    "scenario": "SC08"
+  },
+  "reopenCase": {
+    "service": "case",
+    "method": "ReopenCase",
+    "request": "ReopenCaseRequest",
+    "response": "ReopenCaseResponse",
+    "kind": "Mutation",
+    "output": "ReviewCase!",
+    "scenario": "SC08"
+  },
+  "createReport": {
+    "service": "case",
+    "method": "CreateReport",
+    "request": "CreateReportRequest",
+    "response": "CreateReportResponse",
+    "kind": "Mutation",
+    "output": "Report!",
+    "scenario": "SC09"
+  },
+  "markNotificationRead": {
+    "service": "case",
+    "method": "MarkNotificationRead",
+    "request": "MarkNotificationReadRequest",
+    "response": "MarkNotificationReadResponse",
+    "kind": "Mutation",
+    "output": "Notification!",
+    "scenario": "SC09"
+  }
+}

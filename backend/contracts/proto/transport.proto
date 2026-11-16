@@ -1,0 +1,21 @@
+syntax = "proto3";
+package bank.internal.v1;
+
+// Internal transport for service health and supplementary reads.
+// The transaction flow uses bank.v1.TransactionService.RegisterTransaction,
+// GetTransaction and GetHistory from the public contract directly.
+message InvocationRequest {
+  string method = 1;
+  string actor_id = 2;
+  string actor_login = 3;
+  string actor_role = 4;
+  bytes arguments_json = 5;
+}
+message InvocationResponse {
+  bytes result_json = 1;
+  string error_code = 2;
+  string error_message = 3;
+}
+service BusinessService {
+  rpc Invoke(InvocationRequest) returns (InvocationResponse);
+}

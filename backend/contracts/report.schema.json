@@ -1,0 +1,295 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$defs": {
+    "Request": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "reportType": {
+              "const": "PROFILE"
+            },
+            "idempotencyKey": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128,
+              "pattern": ".*\\S.*"
+            },
+            "profileVersionId": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          "required": [
+            "reportType",
+            "idempotencyKey",
+            "profileVersionId"
+          ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "reportType": {
+              "const": "OPERATION"
+            },
+            "idempotencyKey": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128,
+              "pattern": ".*\\S.*"
+            },
+            "transactionId": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "resultId": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          "required": [
+            "reportType",
+            "idempotencyKey",
+            "transactionId",
+            "resultId"
+          ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "reportType": {
+              "const": "PERIOD"
+            },
+            "idempotencyKey": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128,
+              "pattern": ".*\\S.*"
+            },
+            "period": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "from": {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                "to": {
+                  "type": "string",
+                  "format": "date-time"
+                }
+              },
+              "required": [
+                "from",
+                "to"
+              ]
+            },
+            "clientId": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "currency": {
+              "type": "string",
+              "pattern": "^[A-Z]{3}$"
+            },
+            "direction": {
+              "enum": [
+                "IN",
+                "OUT"
+              ]
+            },
+            "windowDays": {
+              "enum": [
+                7,
+                30,
+                90
+              ]
+            }
+          },
+          "required": [
+            "reportType",
+            "idempotencyKey",
+            "period"
+          ]
+        }
+      ]
+    },
+    "Snapshot": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "reportSchemaVersion": {
+          "const": 1
+        },
+        "reportType": {
+          "enum": [
+            "PROFILE",
+            "OPERATION",
+            "PERIOD"
+          ]
+        },
+        "author": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "id": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "login": {
+              "type": "string",
+              "minLength": 1
+            },
+            "role": {
+              "enum": [
+                "MANAGER",
+                "ANALYST"
+              ]
+            }
+          },
+          "required": [
+            "id",
+            "login",
+            "role"
+          ]
+        },
+        "filters": {
+          "type": "object"
+        },
+        "assembledAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "cutoff": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "completeness": {
+          "const": "COMPLETE"
+        },
+        "consistency": {
+          "const": "OWNER_SNAPSHOTS_NOT_GLOBAL_ATOMIC"
+        },
+        "sourceCuts": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 3,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "owner": {
+                "enum": [
+                  "transaction",
+                  "analysis",
+                  "case"
+                ]
+              },
+              "capturedAt": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "cutoff": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "referencesHash": {
+                "type": "string",
+                "pattern": "^[a-f0-9]{64}$"
+              }
+            },
+            "required": [
+              "owner",
+              "capturedAt",
+              "cutoff",
+              "referencesHash"
+            ]
+          }
+        },
+        "data": {
+          "oneOf": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "client": {
+                  "type": "object"
+                },
+                "profile": {
+                  "type": "object"
+                }
+              },
+              "required": [
+                "client",
+                "profile"
+              ]
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "transaction": {
+                  "type": "object"
+                },
+                "assessment": {
+                  "type": "object"
+                },
+                "profiles": {
+                  "type": "array",
+                  "items": {
+                    "type": "object"
+                  },
+                  "maxItems": 3
+                },
+                "review": {
+                  "type": "object"
+                }
+              },
+              "required": [
+                "transaction",
+                "assessment",
+                "profiles",
+                "review"
+              ]
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "transactions": {
+                  "type": "object"
+                },
+                "analysis": {
+                  "type": "object"
+                },
+                "cases": {
+                  "type": "object"
+                }
+              },
+              "required": [
+                "transactions",
+                "analysis",
+                "cases"
+              ]
+            }
+          ]
+        }
+      },
+      "required": [
+        "reportSchemaVersion",
+        "reportType",
+        "author",
+        "filters",
+        "assembledAt",
+        "cutoff",
+        "completeness",
+        "consistency",
+        "sourceCuts",
+        "data"
+      ]
+    }
+  }
+}

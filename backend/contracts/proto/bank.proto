@@ -1,0 +1,736 @@
+syntax = "proto3";
+package bank.v1;
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/struct.proto";
+
+message User {
+  string id = 1;
+  string login = 2;
+  string role = 3;
+  bool is_active = 4;
+}
+
+message AuthPayload {
+  string access_token = 1;
+  google.protobuf.Timestamp expires_at = 2;
+  User user = 3;
+}
+
+message Client {
+  string id = 1;
+  string external_id = 2;
+  string display_name = 3;
+  optional string segment = 4;
+  bool is_active = 5;
+  repeated Account accounts = 6;
+}
+
+message Account {
+  string id = 1;
+  string client_id = 2;
+  string external_id = 3;
+  string currency = 4;
+  string status = 5;
+}
+
+message Counterparty {
+  string id = 1;
+  string external_id = 2;
+  string display_name = 3;
+  optional string category = 4;
+}
+
+message Transaction {
+  string id = 1;
+  string external_id = 2;
+  string source = 3;
+  string client_id = 4;
+  string account_id = 5;
+  optional string counterparty_id = 6;
+  string amount = 7;
+  string currency = 8;
+  string direction = 9;
+  google.protobuf.Timestamp occurred_at = 10;
+  google.protobuf.Timestamp ingested_at = 11;
+}
+
+message ImportError {
+  int32 row = 1;
+  string code = 2;
+  string message = 3;
+}
+
+message ImportResult {
+  string batch_id = 1;
+  string status = 2;
+  int32 received_count = 3;
+  int32 new_count = 4;
+  int32 duplicate_count = 5;
+  repeated ImportError errors = 6;
+}
+
+message BehaviorProfile {
+  string id = 1;
+  string run_id = 2;
+  string client_id = 3;
+  string currency = 4;
+  string direction = 5;
+  google.protobuf.Timestamp window_start = 6;
+  google.protobuf.Timestamp window_end = 7;
+  optional string cutoff_transaction_id = 8;
+  google.protobuf.Timestamp ingested_before = 9;
+  int32 sample_size = 10;
+  optional string median_amount = 11;
+  optional string mad_amount = 12;
+  google.protobuf.Value metrics = 13;
+  string data_status = 14;
+}
+
+message RuleHit {
+  string rule_code = 1;
+  int32 version = 2;
+  google.protobuf.Value feature_value = 3;
+  google.protobuf.Value limit_value = 4;
+  int32 contribution = 5;
+}
+
+message AnalysisResult {
+  string id = 1;
+  string transaction_id = 2;
+  string run_id = 3;
+  optional string profile_id = 4;
+  int32 score = 5;
+  int32 threshold = 6;
+  string data_status = 7;
+  repeated RuleHit hits = 8;
+  repeated string missing_reasons = 9;
+  google.protobuf.Timestamp calculated_at = 10;
+}
+
+message AnalysisRun {
+  string id = 1;
+  string mode = 2;
+  string status = 3;
+  google.protobuf.Value counters = 4;
+  google.protobuf.Timestamp created_at = 5;
+  google.protobuf.Timestamp completed_at = 6;
+}
+
+message RunComparison {
+  int32 common_count = 1;
+  int32 only_first_count = 2;
+  int32 only_second_count = 3;
+  google.protobuf.Value changed_scores = 4;
+  google.protobuf.Value new_hits = 5;
+}
+
+message RuleVersion {
+  string id = 1;
+  string rule_id = 2;
+  int32 version = 3;
+  int32 weight = 4;
+  google.protobuf.Value parameters = 5;
+  string status = 6;
+  google.protobuf.Timestamp published_at = 7;
+}
+
+message CaseComment {
+  string id = 1;
+  string author_id = 2;
+  string kind = 3;
+  string text = 4;
+  google.protobuf.Timestamp created_at = 5;
+}
+
+message CaseDecision {
+  string id = 1;
+  string author_id = 2;
+  int32 review_cycle = 3;
+  string outcome = 4;
+  string reason = 5;
+  google.protobuf.Timestamp decided_at = 6;
+}
+
+message ReviewCase {
+  string id = 1;
+  string transaction_id = 2;
+  string client_id = 3;
+  string latest_result_id = 4;
+  int32 latest_score = 5;
+  string status = 6;
+  string priority = 7;
+  optional string assignee_id = 8;
+  int32 review_cycle = 9;
+  int32 row_version = 10;
+  repeated CaseComment comments = 11;
+  repeated CaseDecision decisions = 12;
+}
+
+message Report {
+  string id = 1;
+  google.protobuf.Timestamp period_start = 2;
+  google.protobuf.Timestamp period_end = 3;
+  google.protobuf.Value filters = 4;
+  google.protobuf.Value snapshot = 5;
+  google.protobuf.Timestamp created_at = 6;
+}
+
+message Notification {
+  string id = 1;
+  optional string case_id = 2;
+  string type = 3;
+  google.protobuf.Timestamp created_at = 4;
+  google.protobuf.Timestamp read_at = 5;
+}
+
+message ClientActivity {
+  Client client = 1;
+  string currency = 2;
+  repeated Transaction transactions = 3;
+  repeated BehaviorProfile profiles = 4;
+  google.protobuf.Value score_distribution = 5;
+  repeated string partial_errors = 6;
+}
+
+message DistributionResult {
+  int32 assigned_count = 1;
+  int32 unassigned_count = 2;
+  google.protobuf.Value assignments = 3;
+}
+
+message ReportExport {
+  string file_name = 1;
+  string media_type = 2;
+  string content_base64 = 3;
+}
+
+message ClientPage {
+  repeated Client items = 1;
+  optional string next_cursor = 2;
+  int32 total_count = 3;
+}
+
+message TransactionPage {
+  repeated Transaction items = 1;
+  optional string next_cursor = 2;
+  int32 total_count = 3;
+}
+
+message CasePage {
+  repeated ReviewCase items = 1;
+  optional string next_cursor = 2;
+  int32 total_count = 3;
+}
+
+message NotificationPage {
+  repeated Notification items = 1;
+  optional string next_cursor = 2;
+  int32 total_count = 3;
+}
+
+message PeriodInput {
+  google.protobuf.Timestamp from = 1;
+  google.protobuf.Timestamp to = 2;
+}
+
+message PageInput {
+  int32 limit = 1;
+  optional string cursor = 2;
+  optional string sort_by = 3;
+  optional string sort_direction = 4;
+}
+
+message ClientFilter {
+  optional string external_id = 1;
+  optional string segment = 2;
+  optional bool is_active = 3;
+}
+
+message StaffInput {
+  string login = 1;
+  string password = 2;
+  string role_code = 3;
+  string idempotency_key = 4;
+}
+
+message ClientInput {
+  string external_id = 1;
+  string display_name = 2;
+  optional string segment = 3;
+  string idempotency_key = 4;
+}
+
+message AccountInput {
+  string client_id = 1;
+  string external_id = 2;
+  string currency = 3;
+  string idempotency_key = 4;
+}
+
+message CounterpartyInput {
+  string external_id = 1;
+  string display_name = 2;
+  optional string category = 3;
+  string idempotency_key = 4;
+}
+
+message TransactionInput {
+  string source = 1;
+  string external_id = 2;
+  string account_id = 3;
+  optional string counterparty_id = 4;
+  string amount = 5;
+  string currency = 6;
+  string direction = 7;
+  google.protobuf.Timestamp occurred_at = 8;
+  string idempotency_key = 9;
+}
+
+message ImportBatchInput {
+  string file_hash = 1;
+  repeated TransactionInput items = 2;
+  string idempotency_key = 3;
+}
+
+message ProfileInput {
+  string client_id = 1;
+  string currency = 2;
+  string direction = 3;
+  google.protobuf.Timestamp cutoff = 4;
+  string idempotency_key = 5;
+}
+
+message ReanalysisInput {
+  PeriodInput period = 1;
+  optional string client_id = 2;
+  repeated string rule_version_ids = 3;
+  string idempotency_key = 4;
+}
+
+message RuleVersionInput {
+  string rule_id = 1;
+  int32 version = 2;
+  google.protobuf.Value parameters = 3;
+  int32 weight = 4;
+  google.protobuf.Value control_examples = 5;
+  string idempotency_key = 6;
+}
+
+message CaseDecisionInput {
+  string case_id = 1;
+  string outcome = 2;
+  string reason = 3;
+  int32 expected_version = 4;
+  string idempotency_key = 5;
+}
+
+message CaseCommentInput {
+  string case_id = 1;
+  string text = 2;
+  string idempotency_key = 3;
+}
+
+message DistributionInput {
+  int32 limit = 1;
+  string idempotency_key = 2;
+}
+
+message CaseFilter {
+  optional string status = 1;
+  optional string priority = 2;
+  optional string assignee_id = 3;
+  optional string client_id = 4;
+  PeriodInput period = 5;
+}
+
+message TransactionFilter {
+  optional string client_id = 1;
+  PeriodInput period = 2;
+  optional string currency = 3;
+  optional string amount_from = 4;
+  optional string amount_to = 5;
+  optional string direction = 6;
+}
+
+message ReportInput {
+  PeriodInput period = 1;
+  optional string outcome = 2;
+  optional string assignee_id = 3;
+  string idempotency_key = 4;
+}
+
+message GetCurrentUserRequest {
+  string access_token = 1;
+}
+message GetCurrentUserResponse {
+  User data = 1;
+}
+
+message SearchClientsRequest {
+  string access_token = 1;
+  ClientFilter filter = 2;
+  PageInput page = 3;
+}
+message SearchClientsResponse {
+  ClientPage data = 1;
+}
+
+message SearchTransactionsRequest {
+  string access_token = 1;
+  TransactionFilter filter = 2;
+  PageInput page = 3;
+}
+message SearchTransactionsResponse {
+  TransactionPage data = 1;
+}
+
+message GetTransactionRequest {
+  string access_token = 1;
+  string id = 2;
+}
+message GetTransactionResponse {
+  Transaction data = 1;
+}
+
+message GetClientActivityRequest {
+  string access_token = 1;
+  string client_id = 2;
+  PeriodInput period = 3;
+  string currency = 4;
+  string run_id = 5;
+}
+message GetClientActivityResponse {
+  ClientActivity data = 1;
+}
+
+message GetProfileRequest {
+  string access_token = 1;
+  string id = 2;
+}
+message GetProfileResponse {
+  BehaviorProfile data = 1;
+}
+
+message GetResultRequest {
+  string access_token = 1;
+  string id = 2;
+}
+message GetResultResponse {
+  AnalysisResult data = 1;
+}
+
+message GetRunRequest {
+  string access_token = 1;
+  string id = 2;
+}
+message GetRunResponse {
+  AnalysisRun data = 1;
+}
+
+message CompareRunsRequest {
+  string access_token = 1;
+  string first_id = 2;
+  string second_id = 3;
+}
+message CompareRunsResponse {
+  RunComparison data = 1;
+}
+
+message ListRuleVersionsRequest {
+  string access_token = 1;
+  string rule_id = 2;
+}
+message ListRuleVersionsResponse {
+  repeated RuleVersion data = 1;
+}
+
+message SearchCasesRequest {
+  string access_token = 1;
+  CaseFilter filter = 2;
+  PageInput page = 3;
+}
+message SearchCasesResponse {
+  CasePage data = 1;
+}
+
+message GetCaseRequest {
+  string access_token = 1;
+  string id = 2;
+}
+message GetCaseResponse {
+  ReviewCase data = 1;
+}
+
+message GetReportRequest {
+  string access_token = 1;
+  string id = 2;
+}
+message GetReportResponse {
+  Report data = 1;
+}
+
+message ExportReportRequest {
+  string access_token = 1;
+  string id = 2;
+}
+message ExportReportResponse {
+  ReportExport data = 1;
+}
+
+message ListNotificationsRequest {
+  string access_token = 1;
+  optional bool unread_only = 2;
+  PageInput page = 3;
+}
+message ListNotificationsResponse {
+  NotificationPage data = 1;
+}
+
+message LoginRequest {
+  string access_token = 1;
+  string login = 2;
+  string password = 3;
+}
+message LoginResponse {
+  AuthPayload data = 1;
+}
+
+message LogoutRequest {
+  string access_token = 1;
+}
+message LogoutResponse {
+  bool data = 1;
+}
+
+message RegisterStaffRequest {
+  string access_token = 1;
+  StaffInput input = 2;
+}
+message RegisterStaffResponse {
+  User data = 1;
+}
+
+message BlockStaffRequest {
+  string access_token = 1;
+  string user_id = 2;
+  string idempotency_key = 3;
+}
+message BlockStaffResponse {
+  User data = 1;
+}
+
+message ChangeStaffRoleRequest {
+  string access_token = 1;
+  string user_id = 2;
+  string role_code = 3;
+  string idempotency_key = 4;
+}
+message ChangeStaffRoleResponse {
+  User data = 1;
+}
+
+message CreateClientRequest {
+  string access_token = 1;
+  ClientInput input = 2;
+}
+message CreateClientResponse {
+  Client data = 1;
+}
+
+message OpenAccountRequest {
+  string access_token = 1;
+  AccountInput input = 2;
+}
+message OpenAccountResponse {
+  Account data = 1;
+}
+
+message RegisterCounterpartyRequest {
+  string access_token = 1;
+  CounterpartyInput input = 2;
+}
+message RegisterCounterpartyResponse {
+  Counterparty data = 1;
+}
+
+message ImportTransactionsRequest {
+  string access_token = 1;
+  ImportBatchInput input = 2;
+}
+message ImportTransactionsResponse {
+  ImportResult data = 1;
+}
+
+message RegisterTransactionRequest {
+  string access_token = 1;
+  TransactionInput input = 2;
+}
+message RegisterTransactionResponse {
+  Transaction data = 1;
+}
+
+message StartProfileRequest {
+  string access_token = 1;
+  ProfileInput input = 2;
+}
+message StartProfileResponse {
+  AnalysisRun data = 1;
+}
+
+message StartAnalysisRequest {
+  string access_token = 1;
+  string transaction_id = 2;
+  string idempotency_key = 3;
+}
+message StartAnalysisResponse {
+  AnalysisRun data = 1;
+}
+
+message PublishRuleVersionRequest {
+  string access_token = 1;
+  RuleVersionInput input = 2;
+}
+message PublishRuleVersionResponse {
+  RuleVersion data = 1;
+}
+
+message ReanalyzePeriodRequest {
+  string access_token = 1;
+  ReanalysisInput input = 2;
+}
+message ReanalyzePeriodResponse {
+  AnalysisRun data = 1;
+}
+
+message DistributeCasesRequest {
+  string access_token = 1;
+  DistributionInput input = 2;
+}
+message DistributeCasesResponse {
+  DistributionResult data = 1;
+}
+
+message TakeCaseRequest {
+  string access_token = 1;
+  string case_id = 2;
+  int32 expected_version = 3;
+  string idempotency_key = 4;
+}
+message TakeCaseResponse {
+  ReviewCase data = 1;
+}
+
+message AddCaseCommentRequest {
+  string access_token = 1;
+  CaseCommentInput input = 2;
+}
+message AddCaseCommentResponse {
+  ReviewCase data = 1;
+}
+
+message EscalateCaseRequest {
+  string access_token = 1;
+  string case_id = 2;
+  string reason = 3;
+  int32 expected_version = 4;
+  string idempotency_key = 5;
+}
+message EscalateCaseResponse {
+  ReviewCase data = 1;
+}
+
+message CloseCaseRequest {
+  string access_token = 1;
+  CaseDecisionInput input = 2;
+}
+message CloseCaseResponse {
+  ReviewCase data = 1;
+}
+
+message ReopenCaseRequest {
+  string access_token = 1;
+  string case_id = 2;
+  string reason = 3;
+  int32 expected_version = 4;
+  string idempotency_key = 5;
+}
+message ReopenCaseResponse {
+  ReviewCase data = 1;
+}
+
+message CreateReportRequest {
+  string access_token = 1;
+  ReportInput input = 2;
+}
+message CreateReportResponse {
+  Report data = 1;
+}
+
+message MarkNotificationReadRequest {
+  string access_token = 1;
+  string id = 2;
+}
+message MarkNotificationReadResponse {
+  Notification data = 1;
+}
+
+message ValidateSessionRequest { string access_token = 1; }
+message ValidateSessionResponse { User data = 1; }
+message ListActiveAnalystsRequest {}
+message ListActiveAnalystsResponse { repeated User data = 1; }
+message GetHistoryRequest { string client_id = 1; string currency = 2; string direction = 3; google.protobuf.Timestamp window_start = 4; google.protobuf.Timestamp before_at = 5; optional string before_id = 6; google.protobuf.Timestamp ingested_before = 7; optional string page_token = 8; int32 limit = 9; }
+message GetHistoryResponse { repeated Transaction items = 1; optional string next_page_token = 2; }
+message HealthRequest {}
+message HealthResponse { string service = 1; string database = 2; int32 table_count = 3; string status = 4; }
+service AuthService {
+  rpc GetCurrentUser(GetCurrentUserRequest) returns (GetCurrentUserResponse);
+  rpc Login(LoginRequest) returns (LoginResponse);
+  rpc Logout(LogoutRequest) returns (LogoutResponse);
+  rpc RegisterStaff(RegisterStaffRequest) returns (RegisterStaffResponse);
+  rpc BlockStaff(BlockStaffRequest) returns (BlockStaffResponse);
+  rpc ChangeStaffRole(ChangeStaffRoleRequest) returns (ChangeStaffRoleResponse);
+  rpc ValidateSession(ValidateSessionRequest) returns (ValidateSessionResponse);
+  rpc ListActiveAnalysts(ListActiveAnalystsRequest) returns (ListActiveAnalystsResponse);
+  rpc Health(HealthRequest) returns (HealthResponse);
+}
+service TransactionService {
+  rpc SearchClients(SearchClientsRequest) returns (SearchClientsResponse);
+  rpc SearchTransactions(SearchTransactionsRequest) returns (SearchTransactionsResponse);
+  rpc GetTransaction(GetTransactionRequest) returns (GetTransactionResponse);
+  rpc CreateClient(CreateClientRequest) returns (CreateClientResponse);
+  rpc OpenAccount(OpenAccountRequest) returns (OpenAccountResponse);
+  rpc RegisterCounterparty(RegisterCounterpartyRequest) returns (RegisterCounterpartyResponse);
+  rpc ImportTransactions(ImportTransactionsRequest) returns (ImportTransactionsResponse);
+  rpc RegisterTransaction(RegisterTransactionRequest) returns (RegisterTransactionResponse);
+  rpc GetHistory(GetHistoryRequest) returns (GetHistoryResponse);
+  rpc Health(HealthRequest) returns (HealthResponse);
+}
+service AnalysisService {
+  rpc GetClientActivity(GetClientActivityRequest) returns (GetClientActivityResponse);
+  rpc GetProfile(GetProfileRequest) returns (GetProfileResponse);
+  rpc GetResult(GetResultRequest) returns (GetResultResponse);
+  rpc GetRun(GetRunRequest) returns (GetRunResponse);
+  rpc CompareRuns(CompareRunsRequest) returns (CompareRunsResponse);
+  rpc ListRuleVersions(ListRuleVersionsRequest) returns (ListRuleVersionsResponse);
+  rpc StartProfile(StartProfileRequest) returns (StartProfileResponse);
+  rpc StartAnalysis(StartAnalysisRequest) returns (StartAnalysisResponse);
+  rpc PublishRuleVersion(PublishRuleVersionRequest) returns (PublishRuleVersionResponse);
+  rpc ReanalyzePeriod(ReanalyzePeriodRequest) returns (ReanalyzePeriodResponse);
+  rpc Health(HealthRequest) returns (HealthResponse);
+}
+service CaseService {
+  rpc SearchCases(SearchCasesRequest) returns (SearchCasesResponse);
+  rpc GetCase(GetCaseRequest) returns (GetCaseResponse);
+  rpc GetReport(GetReportRequest) returns (GetReportResponse);
+  rpc ExportReport(ExportReportRequest) returns (ExportReportResponse);
+  rpc ListNotifications(ListNotificationsRequest) returns (ListNotificationsResponse);
+  rpc DistributeCases(DistributeCasesRequest) returns (DistributeCasesResponse);
+  rpc TakeCase(TakeCaseRequest) returns (TakeCaseResponse);
+  rpc AddCaseComment(AddCaseCommentRequest) returns (AddCaseCommentResponse);
+  rpc EscalateCase(EscalateCaseRequest) returns (EscalateCaseResponse);
+  rpc CloseCase(CloseCaseRequest) returns (CloseCaseResponse);
+  rpc ReopenCase(ReopenCaseRequest) returns (ReopenCaseResponse);
+  rpc CreateReport(CreateReportRequest) returns (CreateReportResponse);
+  rpc MarkNotificationRead(MarkNotificationReadRequest) returns (MarkNotificationReadResponse);
+  rpc Health(HealthRequest) returns (HealthResponse);
+}

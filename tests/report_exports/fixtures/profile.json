@@ -1,0 +1,1373 @@
+{
+  "id": "dc4c16c3-acde-4503-8726-1bf19e2db2ce",
+  "createdAt": "2026-11-09T23:46:10.210246+00:00",
+  "snapshot": {
+    "data": {
+      "client": {
+        "id": "2abef8fc-6084-4b97-b597-811cfa9fc986",
+        "segment": null,
+        "externalId": "2abef8fc-6084-4b97-b597-811cfa9fc986",
+        "displayName": "Report RPC demo"
+      },
+      "profile": {
+        "metrics": {
+          "q25": "100.00",
+          "q75": "100.00",
+          "asOf": "2026-11-09T23:45:09.038992+00:00",
+          "units": {
+            "count": "operations",
+            "share": "fraction",
+            "amount": "BYN",
+            "interval": "seconds",
+            "timeZone": "UTC",
+            "amountRate": "BYN/24h",
+            "activityRate": "operations/24h"
+          },
+          "quality": {
+            "status": "PARTIAL",
+            "activeDays": 20,
+            "sampleSize": 20,
+            "eligibility": {
+              "time": {
+                "reasons": [
+                  "SAMPLE_SIZE_LT_100",
+                  "CONFIRMED_DAYS_LT_28"
+                ],
+                "eligible": false,
+                "required": {
+                  "minSamples": 100,
+                  "minActiveDays": 14,
+                  "minConfirmedUtcDays": 28
+                }
+              },
+              "amount": {
+                "reasons": [],
+                "eligible": true,
+                "required": {
+                  "minSamples": 20,
+                  "minActiveDays": 7
+                }
+              },
+              "dynamics": {
+                "reasons": [
+                  "COMPARISON_PERIODS_NOT_COVERED",
+                  "PRIOR_SAMPLE_SIZE_LT_20"
+                ],
+                "eligible": false,
+                "required": {
+                  "priorDays": 23,
+                  "shortDays": 7,
+                  "minPriorSamples": 20,
+                  "minShortSamples": 5,
+                  "minPriorActiveDays": 7,
+                  "zeroShortRequiresCompleteObservation": true
+                }
+              },
+              "frequency": {
+                "reasons": [
+                  "REFERENCE_HOURS_LT_14",
+                  "CONFIRMED_DAYS_LT_14",
+                  "CURRENT_HOUR_NOT_COVERED"
+                ],
+                "eligible": false,
+                "required": {
+                  "minReferenceHours": 14,
+                  "minConfirmedUtcDays": 14,
+                  "referenceWindowMinutes": 60
+                }
+              },
+              "counterparty": {
+                "reasons": [
+                  "KNOWN_COUNTERPARTY_FRACTION_LT_90_PERCENT"
+                ],
+                "eligible": false,
+                "required": {
+                  "minSamples": 20,
+                  "minActiveDays": 7,
+                  "minKnownFraction": "0.90"
+                }
+              }
+            },
+            "excludedCount": 0,
+            "includedCount": 20,
+            "observedCount": 20,
+            "exclusionFraction": "0.00000000",
+            "fieldCompleteness": {
+              "amount": "1.00000000",
+              "occurredAt": "1.00000000",
+              "counterpartyId": "0.00000000"
+            },
+            "clientScopeVerified": true,
+            "eligibilityPolicyVersion": "profile-readiness-demo-v1"
+          },
+          "baseline": {
+            "q25": "100.00",
+            "q75": "100.00",
+            "iqrAmount": "0.00",
+            "madAmount": "0.00",
+            "activeDays": 20,
+            "meanAmount": "100.00000000",
+            "sampleSize": 20,
+            "dailyCounts": {
+              "2026-10-20": 1,
+              "2026-10-21": 1,
+              "2026-10-22": 1,
+              "2026-10-23": 1,
+              "2026-10-24": 1,
+              "2026-10-25": 1,
+              "2026-10-26": 1,
+              "2026-10-27": 1,
+              "2026-10-28": 1,
+              "2026-10-29": 1,
+              "2026-10-30": 1,
+              "2026-10-31": 1,
+              "2026-11-01": 1,
+              "2026-11-02": 1,
+              "2026-11-03": 1,
+              "2026-11-04": 1,
+              "2026-11-05": 1,
+              "2026-11-06": 1,
+              "2026-11-07": 1,
+              "2026-11-08": 1
+            },
+            "totalAmount": "2000.00",
+            "amountPerDay": null,
+            "hourShareUtc": {
+              "0": "0.00000000",
+              "1": "0.00000000",
+              "2": "0.00000000",
+              "3": "0.00000000",
+              "4": "0.00000000",
+              "5": "0.00000000",
+              "6": "0.00000000",
+              "7": "0.00000000",
+              "8": "0.00000000",
+              "9": "0.00000000",
+              "10": "0.00000000",
+              "11": "0.00000000",
+              "12": "0.00000000",
+              "13": "0.00000000",
+              "14": "0.00000000",
+              "15": "0.00000000",
+              "16": "0.00000000",
+              "17": "0.00000000",
+              "18": "0.00000000",
+              "19": "0.00000000",
+              "20": "0.00000000",
+              "21": "0.00000000",
+              "22": "0.00000000",
+              "23": "1.00000000"
+            },
+            "medianAmount": "100.00",
+            "excludedCount": 0,
+            "hourCountsUtc": {
+              "0": 0,
+              "1": 0,
+              "2": 0,
+              "3": 0,
+              "4": 0,
+              "5": 0,
+              "6": 0,
+              "7": 0,
+              "8": 0,
+              "9": 0,
+              "10": 0,
+              "11": 0,
+              "12": 0,
+              "13": 0,
+              "14": 0,
+              "15": 0,
+              "16": 0,
+              "17": 0,
+              "18": 0,
+              "19": 0,
+              "20": 0,
+              "21": 0,
+              "22": 0,
+              "23": 20
+            },
+            "includedCount": 20,
+            "observedCount": 20,
+            "counterparties": {
+              "top": [
+                {
+                  "id": null,
+                  "kind": "UNKNOWN",
+                  "count": 20,
+                  "countShare": "1.00000000",
+                  "amountShare": "1.00000000",
+                  "totalAmount": "2000.00"
+                }
+              ],
+              "items": [
+                {
+                  "id": null,
+                  "kind": "UNKNOWN",
+                  "count": 20,
+                  "countShare": "1.00000000",
+                  "amountShare": "1.00000000",
+                  "totalAmount": "2000.00"
+                }
+              ],
+              "knownHHI": null,
+              "knownCount": 0,
+              "unknownCount": 20,
+              "knownFraction": "0.00000000",
+              "hhiDenominator": "KNOWN_OPERATIONS_ONLY",
+              "shareDenominator": "ALL_INCLUDED_OPERATIONS",
+              "knownOperationCount": 0
+            },
+            "weekdayShareUtc": {
+              "0": "0.10000000",
+              "1": "0.15000000",
+              "2": "0.15000000",
+              "3": "0.15000000",
+              "4": "0.15000000",
+              "5": "0.15000000",
+              "6": "0.15000000"
+            },
+            "operationsPerDay": null,
+            "weekdayCountsUtc": {
+              "0": 2,
+              "1": 3,
+              "2": 3,
+              "3": 3,
+              "4": 3,
+              "5": 3,
+              "6": 3
+            },
+            "counterpartyCount": 0,
+            "topCounterparties": [
+              {
+                "id": null,
+                "kind": "UNKNOWN",
+                "count": 20,
+                "countShare": "1.00000000",
+                "amountShare": "1.00000000",
+                "totalAmount": "2000.00"
+              }
+            ],
+            "knownCounterparties": [],
+            "rateDenominatorDays": null,
+            "knownCounterpartyHHI": null,
+            "interarrivalQ25Seconds": "86400",
+            "interarrivalQ75Seconds": "86400",
+            "interarrivalMedianSeconds": "86400",
+            "knownCounterpartyFraction": "0.00000000"
+          },
+          "dynamics": {
+            "prior": {
+              "to": "2026-11-02T23:45:09.038992+00:00",
+              "days": 23,
+              "from": "2026-10-10T23:45:09.038992+00:00",
+              "count": 13,
+              "activeDays": 13,
+              "totalAmount": "1300.00",
+              "amountPerDay": null,
+              "medianAmount": "100.00",
+              "operationsPerDay": null,
+              "completeObservation": false
+            },
+            "short": {
+              "to": "2026-11-09T23:45:09.038992+00:00",
+              "days": 7,
+              "from": "2026-11-02T23:45:09.038992+00:00",
+              "count": 7,
+              "activeDays": 7,
+              "totalAmount": "700.00",
+              "amountPerDay": null,
+              "medianAmount": "100.00",
+              "operationsPerDay": null,
+              "completeObservation": false
+            },
+            "status": "UNKNOWN_COVERAGE",
+            "policyVersion": "profile-dynamics-v1",
+            "countRateDelta": null,
+            "countRateRatio": null,
+            "interpretation": "DESCRIPTIVE_NOT_RISK",
+            "amountRateDelta": null,
+            "amountRateRatio": null,
+            "medianAmountDelta": "0.00000000",
+            "sufficientSamples": false,
+            "overlappingPeriods": false
+          },
+          "observed": {
+            "q25": "100.00",
+            "q75": "100.00",
+            "iqrAmount": "0.00",
+            "madAmount": "0.00",
+            "activeDays": 20,
+            "meanAmount": "100.00000000",
+            "sampleSize": 20,
+            "dailyCounts": {
+              "2026-10-20": 1,
+              "2026-10-21": 1,
+              "2026-10-22": 1,
+              "2026-10-23": 1,
+              "2026-10-24": 1,
+              "2026-10-25": 1,
+              "2026-10-26": 1,
+              "2026-10-27": 1,
+              "2026-10-28": 1,
+              "2026-10-29": 1,
+              "2026-10-30": 1,
+              "2026-10-31": 1,
+              "2026-11-01": 1,
+              "2026-11-02": 1,
+              "2026-11-03": 1,
+              "2026-11-04": 1,
+              "2026-11-05": 1,
+              "2026-11-06": 1,
+              "2026-11-07": 1,
+              "2026-11-08": 1
+            },
+            "totalAmount": "2000.00",
+            "amountPerDay": null,
+            "hourShareUtc": {
+              "0": "0.00000000",
+              "1": "0.00000000",
+              "2": "0.00000000",
+              "3": "0.00000000",
+              "4": "0.00000000",
+              "5": "0.00000000",
+              "6": "0.00000000",
+              "7": "0.00000000",
+              "8": "0.00000000",
+              "9": "0.00000000",
+              "10": "0.00000000",
+              "11": "0.00000000",
+              "12": "0.00000000",
+              "13": "0.00000000",
+              "14": "0.00000000",
+              "15": "0.00000000",
+              "16": "0.00000000",
+              "17": "0.00000000",
+              "18": "0.00000000",
+              "19": "0.00000000",
+              "20": "0.00000000",
+              "21": "0.00000000",
+              "22": "0.00000000",
+              "23": "1.00000000"
+            },
+            "medianAmount": "100.00",
+            "excludedCount": 0,
+            "hourCountsUtc": {
+              "0": 0,
+              "1": 0,
+              "2": 0,
+              "3": 0,
+              "4": 0,
+              "5": 0,
+              "6": 0,
+              "7": 0,
+              "8": 0,
+              "9": 0,
+              "10": 0,
+              "11": 0,
+              "12": 0,
+              "13": 0,
+              "14": 0,
+              "15": 0,
+              "16": 0,
+              "17": 0,
+              "18": 0,
+              "19": 0,
+              "20": 0,
+              "21": 0,
+              "22": 0,
+              "23": 20
+            },
+            "includedCount": 20,
+            "observedCount": 20,
+            "counterparties": {
+              "top": [
+                {
+                  "id": null,
+                  "kind": "UNKNOWN",
+                  "count": 20,
+                  "countShare": "1.00000000",
+                  "amountShare": "1.00000000",
+                  "totalAmount": "2000.00"
+                }
+              ],
+              "items": [
+                {
+                  "id": null,
+                  "kind": "UNKNOWN",
+                  "count": 20,
+                  "countShare": "1.00000000",
+                  "amountShare": "1.00000000",
+                  "totalAmount": "2000.00"
+                }
+              ],
+              "knownHHI": null,
+              "knownCount": 0,
+              "unknownCount": 20,
+              "knownFraction": "0.00000000",
+              "hhiDenominator": "KNOWN_OPERATIONS_ONLY",
+              "shareDenominator": "ALL_INCLUDED_OPERATIONS",
+              "knownOperationCount": 0
+            },
+            "weekdayShareUtc": {
+              "0": "0.10000000",
+              "1": "0.15000000",
+              "2": "0.15000000",
+              "3": "0.15000000",
+              "4": "0.15000000",
+              "5": "0.15000000",
+              "6": "0.15000000"
+            },
+            "operationsPerDay": null,
+            "weekdayCountsUtc": {
+              "0": 2,
+              "1": 3,
+              "2": 3,
+              "3": 3,
+              "4": 3,
+              "5": 3,
+              "6": 3
+            },
+            "counterpartyCount": 0,
+            "topCounterparties": [
+              {
+                "id": null,
+                "kind": "UNKNOWN",
+                "count": 20,
+                "countShare": "1.00000000",
+                "amountShare": "1.00000000",
+                "totalAmount": "2000.00"
+              }
+            ],
+            "knownCounterparties": [],
+            "rateDenominatorDays": null,
+            "knownCounterpartyHHI": null,
+            "interarrivalQ25Seconds": "86400",
+            "interarrivalQ75Seconds": "86400",
+            "interarrivalMedianSeconds": "86400",
+            "knownCounterpartyFraction": "0.00000000"
+          },
+          "iqrAmount": "0.00",
+          "madAmount": "0.00",
+          "activeDays": 20,
+          "confidence": 0.667,
+          "dataStatus": "SUFFICIENT",
+          "exclusions": [],
+          "meanAmount": "100.00000000",
+          "sampleSize": 20,
+          "windowDays": 30,
+          "dailyCounts": {
+            "2026-10-20": 1,
+            "2026-10-21": 1,
+            "2026-10-22": 1,
+            "2026-10-23": 1,
+            "2026-10-24": 1,
+            "2026-10-25": 1,
+            "2026-10-26": 1,
+            "2026-10-27": 1,
+            "2026-10-28": 1,
+            "2026-10-29": 1,
+            "2026-10-30": 1,
+            "2026-10-31": 1,
+            "2026-11-01": 1,
+            "2026-11-02": 1,
+            "2026-11-03": 1,
+            "2026-11-04": 1,
+            "2026-11-05": 1,
+            "2026-11-06": 1,
+            "2026-11-07": 1,
+            "2026-11-08": 1
+          },
+          "history_ids": [
+            "4a57ac67-cf6c-49f4-8dc6-51f044d98d81",
+            "37170df5-5a28-4fb7-9b03-52d1eb6215e8",
+            "b3cc5876-6041-44be-9a9a-3d31739cf86a",
+            "51e93439-14ac-4897-b625-215454af8656",
+            "112b2cad-40df-4879-b8c6-75ceefe4f739",
+            "ec2918e0-8cfe-4374-981d-dbd061fe6410",
+            "a3f70e05-9900-485f-b415-1049b338342c",
+            "bb1fd2bf-aece-4d5c-b2b9-0dc4dbf286d2",
+            "7f6f7c3d-aec3-4cb3-90e9-dd9f66811102",
+            "f31bc3db-8008-4943-8aa8-e5c8bd9cc3ce",
+            "77634f56-2cb9-4c3b-be8b-079fd657e6e6",
+            "ef2319f2-5887-4e5b-9041-b6057599e67d",
+            "0f624f2e-dc50-4f96-b0b0-ac645f1a5544",
+            "0a35ea89-d793-4a22-92b1-9e33d22e7595",
+            "649c8790-2bd1-4e07-a2a5-acb2d7fca603",
+            "02c7bc71-c425-4e8b-9008-79d83b868e07",
+            "89bf2b72-0516-4a50-be1b-683cd9598bef",
+            "89acb356-79c9-4317-a9f9-acf7e05e93fc",
+            "f186bbcf-ae10-4f88-ac7d-20b40679a0eb",
+            "0e8dc4e5-65ce-4602-af0d-1a7facb75e37"
+          ],
+          "observation": {
+            "revision": "unknown-v1",
+            "coverageMode": "UNKNOWN",
+            "coveredSeconds": "0",
+            "knownHistoryEnd": "2026-11-08T23:45:09.038992+00:00",
+            "coverageFraction": "0.00000000",
+            "knownSpanSeconds": "1641600",
+            "fullWindowCovered": false,
+            "knownHistoryStart": "2026-10-20T23:45:09.038992+00:00",
+            "confirmedIntervals": []
+          },
+          "totalAmount": "2000.00",
+          "windowStart": "2026-10-10T23:45:09.038992+00:00",
+          "amountPerDay": null,
+          "dailyAverage": null,
+          "hourShareUtc": {
+            "0": "0.00000000",
+            "1": "0.00000000",
+            "2": "0.00000000",
+            "3": "0.00000000",
+            "4": "0.00000000",
+            "5": "0.00000000",
+            "6": "0.00000000",
+            "7": "0.00000000",
+            "8": "0.00000000",
+            "9": "0.00000000",
+            "10": "0.00000000",
+            "11": "0.00000000",
+            "12": "0.00000000",
+            "13": "0.00000000",
+            "14": "0.00000000",
+            "15": "0.00000000",
+            "16": "0.00000000",
+            "17": "0.00000000",
+            "18": "0.00000000",
+            "19": "0.00000000",
+            "20": "0.00000000",
+            "21": "0.00000000",
+            "22": "0.00000000",
+            "23": "1.00000000"
+          },
+          "medianAmount": "100.00",
+          "excludedCount": 0,
+          "hourCountsUtc": {
+            "0": 0,
+            "1": 0,
+            "2": 0,
+            "3": 0,
+            "4": 0,
+            "5": 0,
+            "6": 0,
+            "7": 0,
+            "8": 0,
+            "9": 0,
+            "10": 0,
+            "11": 0,
+            "12": 0,
+            "13": 0,
+            "14": 0,
+            "15": 0,
+            "16": 0,
+            "17": 0,
+            "18": 0,
+            "19": 0,
+            "20": 0,
+            "21": 0,
+            "22": 0,
+            "23": 20
+          },
+          "includedCount": 20,
+          "observedCount": 20,
+          "counterparties": {
+            "top": [
+              {
+                "id": null,
+                "kind": "UNKNOWN",
+                "count": 20,
+                "countShare": "1.00000000",
+                "amountShare": "1.00000000",
+                "totalAmount": "2000.00"
+              }
+            ],
+            "items": [
+              {
+                "id": null,
+                "kind": "UNKNOWN",
+                "count": 20,
+                "countShare": "1.00000000",
+                "amountShare": "1.00000000",
+                "totalAmount": "2000.00"
+              }
+            ],
+            "knownHHI": null,
+            "knownCount": 0,
+            "unknownCount": 20,
+            "knownFraction": "0.00000000",
+            "hhiDenominator": "KNOWN_OPERATIONS_ONLY",
+            "shareDenominator": "ALL_INCLUDED_OPERATIONS",
+            "knownOperationCount": 0
+          },
+          "ingestedBefore": "2026-11-09T23:46:09.221365+00:00",
+          "referenceHours": [
+            {
+              "to": "2026-11-08T23:45:09.038992+00:00",
+              "from": "2026-11-08T22:45:09.038992+00:00",
+              "count": null,
+              "includedCount": 0,
+              "observedCount": 0,
+              "coverageStatus": "UNKNOWN"
+            },
+            {
+              "to": "2026-11-07T23:45:09.038992+00:00",
+              "from": "2026-11-07T22:45:09.038992+00:00",
+              "count": null,
+              "includedCount": 0,
+              "observedCount": 0,
+              "coverageStatus": "UNKNOWN"
+            },
+            {
+              "to": "2026-11-06T23:45:09.038992+00:00",
+              "from": "2026-11-06T22:45:09.038992+00:00",
+              "count": null,
+              "includedCount": 0,
+              "observedCount": 0,
+              "coverageStatus": "UNKNOWN"
+            },
+            {
+              "to": "2026-11-05T23:45:09.038992+00:00",
+              "from": "2026-11-05T22:45:09.038992+00:00",
+              "count": null,
+              "includedCount": 0,
+              "observedCount": 0,
+              "coverageStatus": "UNKNOWN"
+            },
+            {
+              "to": "2026-11-04T23:45:09.038992+00:00",
+              "from": "2026-11-04T22:45:09.038992+00:00",
+              "count": null,
+              "includedCount": 0,
+              "observedCount": 0,
+              "coverageStatus": "UNKNOWN"
+            },
+            {
+              "to": "2026-11-03T23:45:09.038992+00:00",
+              "from": "2026-11-03T22:45:09.038992+00:00",
+              "count": null,
+              "includedCount": 0,
+              "observedCount": 0,
+              "coverageStatus": "UNKNOWN"
+            },
+            {
+              "to": "2026-11-02T23:45:09.038992+00:00",
+              "from": "2026-11-02T22:45:09.038992+00:00",
+              "count": null,
+              "includedCount": 0,
+              "observedCount": 0,
+              "coverageStatus": "UNKNOWN"
+            },
+            {
+              "to": "2026-11-01T23:45:09.038992+00:00",
+              "from": "2026-11-01T22:45:09.038992+00:00",
+              "count": null,
+              "includedCount": 0,
+              "observedCount": 0,
+              "coverageStatus": "UNKNOWN"
+            },
+            {
+              "to": "2026-10-31T23:45:09.038992+00:00",
+              "from": "2026-10-31T22:45:09.038992+00:00",
+              "count": null,
+              "includedCount": 0,
+              "observedCount": 0,
+              "coverageStatus": "UNKNOWN"
+            },
+            {
+              "to": "2026-10-30T23:45:09.038992+00:00",
+              "from": "2026-10-30T22:45:09.038992+00:00",
+              "count": null,
+              "includedCount": 0,
+              "observedCount": 0,
+              "coverageStatus": "UNKNOWN"
+            },
+            {
+              "to": "2026-10-29T23:45:09.038992+00:00",
+              "from": "2026-10-29T22:45:09.038992+00:00",
+              "count": null,
+              "includedCount": 0,
+              "observedCount": 0,
+              "coverageStatus": "UNKNOWN"
+            },
+            {
+              "to": "2026-10-28T23:45:09.038992+00:00",
+              "from": "2026-10-28T22:45:09.038992+00:00",
+              "count": null,
+              "includedCount": 0,
+              "observedCount": 0,
+              "coverageStatus": "UNKNOWN"
+            },
+            {
+              "to": "2026-10-27T23:45:09.038992+00:00",
+              "from": "2026-10-27T22:45:09.038992+00:00",
+              "count": null,
+              "includedCount": 0,
+              "observedCount": 0,
+              "coverageStatus": "UNKNOWN"
+            },
+            {
+              "to": "2026-10-26T23:45:09.038992+00:00",
+              "from": "2026-10-26T22:45:09.038992+00:00",
+              "count": null,
+              "includedCount": 0,
+              "observedCount": 0,
+              "coverageStatus": "UNKNOWN"
+            },
+            {
+              "to": "2026-10-25T23:45:09.038992+00:00",
+              "from": "2026-10-25T22:45:09.038992+00:00",
+              "count": null,
+              "includedCount": 0,
+              "observedCount": 0,
+              "coverageStatus": "UNKNOWN"
+            },
+            {
+              "to": "2026-10-24T23:45:09.038992+00:00",
+              "from": "2026-10-24T22:45:09.038992+00:00",
+              "count": null,
+              "includedCount": 0,
+              "observedCount": 0,
+              "coverageStatus": "UNKNOWN"
+            },
+            {
+              "to": "2026-10-23T23:45:09.038992+00:00",
+              "from": "2026-10-23T22:45:09.038992+00:00",
+              "count": null,
+              "includedCount": 0,
+              "observedCount": 0,
+              "coverageStatus": "UNKNOWN"
+            },
+            {
+              "to": "2026-10-22T23:45:09.038992+00:00",
+              "from": "2026-10-22T22:45:09.038992+00:00",
+              "count": null,
+              "includedCount": 0,
+              "observedCount": 0,
+              "coverageStatus": "UNKNOWN"
+            },
+            {
+              "to": "2026-10-21T23:45:09.038992+00:00",
+              "from": "2026-10-21T22:45:09.038992+00:00",
+              "count": null,
+              "includedCount": 0,
+              "observedCount": 0,
+              "coverageStatus": "UNKNOWN"
+            },
+            {
+              "to": "2026-10-20T23:45:09.038992+00:00",
+              "from": "2026-10-20T22:45:09.038992+00:00",
+              "count": null,
+              "includedCount": 0,
+              "observedCount": 0,
+              "coverageStatus": "UNKNOWN"
+            },
+            {
+              "to": "2026-10-19T23:45:09.038992+00:00",
+              "from": "2026-10-19T22:45:09.038992+00:00",
+              "count": null,
+              "includedCount": 0,
+              "observedCount": 0,
+              "coverageStatus": "UNKNOWN"
+            },
+            {
+              "to": "2026-10-18T23:45:09.038992+00:00",
+              "from": "2026-10-18T22:45:09.038992+00:00",
+              "count": null,
+              "includedCount": 0,
+              "observedCount": 0,
+              "coverageStatus": "UNKNOWN"
+            },
+            {
+              "to": "2026-10-17T23:45:09.038992+00:00",
+              "from": "2026-10-17T22:45:09.038992+00:00",
+              "count": null,
+              "includedCount": 0,
+              "observedCount": 0,
+              "coverageStatus": "UNKNOWN"
+            },
+            {
+              "to": "2026-10-16T23:45:09.038992+00:00",
+              "from": "2026-10-16T22:45:09.038992+00:00",
+              "count": null,
+              "includedCount": 0,
+              "observedCount": 0,
+              "coverageStatus": "UNKNOWN"
+            },
+            {
+              "to": "2026-10-15T23:45:09.038992+00:00",
+              "from": "2026-10-15T22:45:09.038992+00:00",
+              "count": null,
+              "includedCount": 0,
+              "observedCount": 0,
+              "coverageStatus": "UNKNOWN"
+            },
+            {
+              "to": "2026-10-14T23:45:09.038992+00:00",
+              "from": "2026-10-14T22:45:09.038992+00:00",
+              "count": null,
+              "includedCount": 0,
+              "observedCount": 0,
+              "coverageStatus": "UNKNOWN"
+            },
+            {
+              "to": "2026-10-13T23:45:09.038992+00:00",
+              "from": "2026-10-13T22:45:09.038992+00:00",
+              "count": null,
+              "includedCount": 0,
+              "observedCount": 0,
+              "coverageStatus": "UNKNOWN"
+            },
+            {
+              "to": "2026-10-12T23:45:09.038992+00:00",
+              "from": "2026-10-12T22:45:09.038992+00:00",
+              "count": null,
+              "includedCount": 0,
+              "observedCount": 0,
+              "coverageStatus": "UNKNOWN"
+            },
+            {
+              "to": "2026-10-11T23:45:09.038992+00:00",
+              "from": "2026-10-11T22:45:09.038992+00:00",
+              "count": null,
+              "includedCount": 0,
+              "observedCount": 0,
+              "coverageStatus": "UNKNOWN"
+            }
+          ],
+          "sampleFillRatio": "0.66666667",
+          "weekdayShareUtc": {
+            "0": "0.10000000",
+            "1": "0.15000000",
+            "2": "0.15000000",
+            "3": "0.15000000",
+            "4": "0.15000000",
+            "5": "0.15000000",
+            "6": "0.15000000"
+          },
+          "algorithmVersion": "behavior-profile-v3.2",
+          "calendarActivity": [
+            {
+              "to": "2026-10-11T00:00:00+00:00",
+              "date": "2026-10-10",
+              "from": "2026-10-10T23:45:09.038992+00:00",
+              "count": null,
+              "includedCount": 0,
+              "observedCount": 0,
+              "coverageStatus": "UNKNOWN",
+              "coveredSeconds": "0",
+              "countPopulation": "BASELINE",
+              "durationSeconds": "890.961008"
+            },
+            {
+              "to": "2026-10-12T00:00:00+00:00",
+              "date": "2026-10-11",
+              "from": "2026-10-11T00:00:00+00:00",
+              "count": null,
+              "includedCount": 0,
+              "observedCount": 0,
+              "coverageStatus": "UNKNOWN",
+              "coveredSeconds": "0",
+              "countPopulation": "BASELINE",
+              "durationSeconds": "86400"
+            },
+            {
+              "to": "2026-10-13T00:00:00+00:00",
+              "date": "2026-10-12",
+              "from": "2026-10-12T00:00:00+00:00",
+              "count": null,
+              "includedCount": 0,
+              "observedCount": 0,
+              "coverageStatus": "UNKNOWN",
+              "coveredSeconds": "0",
+              "countPopulation": "BASELINE",
+              "durationSeconds": "86400"
+            },
+            {
+              "to": "2026-10-14T00:00:00+00:00",
+              "date": "2026-10-13",
+              "from": "2026-10-13T00:00:00+00:00",
+              "count": null,
+              "includedCount": 0,
+              "observedCount": 0,
+              "coverageStatus": "UNKNOWN",
+              "coveredSeconds": "0",
+              "countPopulation": "BASELINE",
+              "durationSeconds": "86400"
+            },
+            {
+              "to": "2026-10-15T00:00:00+00:00",
+              "date": "2026-10-14",
+              "from": "2026-10-14T00:00:00+00:00",
+              "count": null,
+              "includedCount": 0,
+              "observedCount": 0,
+              "coverageStatus": "UNKNOWN",
+              "coveredSeconds": "0",
+              "countPopulation": "BASELINE",
+              "durationSeconds": "86400"
+            },
+            {
+              "to": "2026-10-16T00:00:00+00:00",
+              "date": "2026-10-15",
+              "from": "2026-10-15T00:00:00+00:00",
+              "count": null,
+              "includedCount": 0,
+              "observedCount": 0,
+              "coverageStatus": "UNKNOWN",
+              "coveredSeconds": "0",
+              "countPopulation": "BASELINE",
+              "durationSeconds": "86400"
+            },
+            {
+              "to": "2026-10-17T00:00:00+00:00",
+              "date": "2026-10-16",
+              "from": "2026-10-16T00:00:00+00:00",
+              "count": null,
+              "includedCount": 0,
+              "observedCount": 0,
+              "coverageStatus": "UNKNOWN",
+              "coveredSeconds": "0",
+              "countPopulation": "BASELINE",
+              "durationSeconds": "86400"
+            },
+            {
+              "to": "2026-10-18T00:00:00+00:00",
+              "date": "2026-10-17",
+              "from": "2026-10-17T00:00:00+00:00",
+              "count": null,
+              "includedCount": 0,
+              "observedCount": 0,
+              "coverageStatus": "UNKNOWN",
+              "coveredSeconds": "0",
+              "countPopulation": "BASELINE",
+              "durationSeconds": "86400"
+            },
+            {
+              "to": "2026-10-19T00:00:00+00:00",
+              "date": "2026-10-18",
+              "from": "2026-10-18T00:00:00+00:00",
+              "count": null,
+              "includedCount": 0,
+              "observedCount": 0,
+              "coverageStatus": "UNKNOWN",
+              "coveredSeconds": "0",
+              "countPopulation": "BASELINE",
+              "durationSeconds": "86400"
+            },
+            {
+              "to": "2026-10-20T00:00:00+00:00",
+              "date": "2026-10-19",
+              "from": "2026-10-19T00:00:00+00:00",
+              "count": null,
+              "includedCount": 0,
+              "observedCount": 0,
+              "coverageStatus": "UNKNOWN",
+              "coveredSeconds": "0",
+              "countPopulation": "BASELINE",
+              "durationSeconds": "86400"
+            },
+            {
+              "to": "2026-10-21T00:00:00+00:00",
+              "date": "2026-10-20",
+              "from": "2026-10-20T00:00:00+00:00",
+              "count": null,
+              "includedCount": 1,
+              "observedCount": 1,
+              "coverageStatus": "UNKNOWN",
+              "coveredSeconds": "0",
+              "countPopulation": "BASELINE",
+              "durationSeconds": "86400"
+            },
+            {
+              "to": "2026-10-22T00:00:00+00:00",
+              "date": "2026-10-21",
+              "from": "2026-10-21T00:00:00+00:00",
+              "count": null,
+              "includedCount": 1,
+              "observedCount": 1,
+              "coverageStatus": "UNKNOWN",
+              "coveredSeconds": "0",
+              "countPopulation": "BASELINE",
+              "durationSeconds": "86400"
+            },
+            {
+              "to": "2026-10-23T00:00:00+00:00",
+              "date": "2026-10-22",
+              "from": "2026-10-22T00:00:00+00:00",
+              "count": null,
+              "includedCount": 1,
+              "observedCount": 1,
+              "coverageStatus": "UNKNOWN",
+              "coveredSeconds": "0",
+              "countPopulation": "BASELINE",
+              "durationSeconds": "86400"
+            },
+            {
+              "to": "2026-10-24T00:00:00+00:00",
+              "date": "2026-10-23",
+              "from": "2026-10-23T00:00:00+00:00",
+              "count": null,
+              "includedCount": 1,
+              "observedCount": 1,
+              "coverageStatus": "UNKNOWN",
+              "coveredSeconds": "0",
+              "countPopulation": "BASELINE",
+              "durationSeconds": "86400"
+            },
+            {
+              "to": "2026-10-25T00:00:00+00:00",
+              "date": "2026-10-24",
+              "from": "2026-10-24T00:00:00+00:00",
+              "count": null,
+              "includedCount": 1,
+              "observedCount": 1,
+              "coverageStatus": "UNKNOWN",
+              "coveredSeconds": "0",
+              "countPopulation": "BASELINE",
+              "durationSeconds": "86400"
+            },
+            {
+              "to": "2026-10-26T00:00:00+00:00",
+              "date": "2026-10-25",
+              "from": "2026-10-25T00:00:00+00:00",
+              "count": null,
+              "includedCount": 1,
+              "observedCount": 1,
+              "coverageStatus": "UNKNOWN",
+              "coveredSeconds": "0",
+              "countPopulation": "BASELINE",
+              "durationSeconds": "86400"
+            },
+            {
+              "to": "2026-10-27T00:00:00+00:00",
+              "date": "2026-10-26",
+              "from": "2026-10-26T00:00:00+00:00",
+              "count": null,
+              "includedCount": 1,
+              "observedCount": 1,
+              "coverageStatus": "UNKNOWN",
+              "coveredSeconds": "0",
+              "countPopulation": "BASELINE",
+              "durationSeconds": "86400"
+            },
+            {
+              "to": "2026-10-28T00:00:00+00:00",
+              "date": "2026-10-27",
+              "from": "2026-10-27T00:00:00+00:00",
+              "count": null,
+              "includedCount": 1,
+              "observedCount": 1,
+              "coverageStatus": "UNKNOWN",
+              "coveredSeconds": "0",
+              "countPopulation": "BASELINE",
+              "durationSeconds": "86400"
+            },
+            {
+              "to": "2026-10-29T00:00:00+00:00",
+              "date": "2026-10-28",
+              "from": "2026-10-28T00:00:00+00:00",
+              "count": null,
+              "includedCount": 1,
+              "observedCount": 1,
+              "coverageStatus": "UNKNOWN",
+              "coveredSeconds": "0",
+              "countPopulation": "BASELINE",
+              "durationSeconds": "86400"
+            },
+            {
+              "to": "2026-10-30T00:00:00+00:00",
+              "date": "2026-10-29",
+              "from": "2026-10-29T00:00:00+00:00",
+              "count": null,
+              "includedCount": 1,
+              "observedCount": 1,
+              "coverageStatus": "UNKNOWN",
+              "coveredSeconds": "0",
+              "countPopulation": "BASELINE",
+              "durationSeconds": "86400"
+            },
+            {
+              "to": "2026-10-31T00:00:00+00:00",
+              "date": "2026-10-30",
+              "from": "2026-10-30T00:00:00+00:00",
+              "count": null,
+              "includedCount": 1,
+              "observedCount": 1,
+              "coverageStatus": "UNKNOWN",
+              "coveredSeconds": "0",
+              "countPopulation": "BASELINE",
+              "durationSeconds": "86400"
+            },
+            {
+              "to": "2026-11-01T00:00:00+00:00",
+              "date": "2026-10-31",
+              "from": "2026-10-31T00:00:00+00:00",
+              "count": null,
+              "includedCount": 1,
+              "observedCount": 1,
+              "coverageStatus": "UNKNOWN",
+              "coveredSeconds": "0",
+              "countPopulation": "BASELINE",
+              "durationSeconds": "86400"
+            },
+            {
+              "to": "2026-11-02T00:00:00+00:00",
+              "date": "2026-11-01",
+              "from": "2026-11-01T00:00:00+00:00",
+              "count": null,
+              "includedCount": 1,
+              "observedCount": 1,
+              "coverageStatus": "UNKNOWN",
+              "coveredSeconds": "0",
+              "countPopulation": "BASELINE",
+              "durationSeconds": "86400"
+            },
+            {
+              "to": "2026-11-03T00:00:00+00:00",
+              "date": "2026-11-02",
+              "from": "2026-11-02T00:00:00+00:00",
+              "count": null,
+              "includedCount": 1,
+              "observedCount": 1,
+              "coverageStatus": "UNKNOWN",
+              "coveredSeconds": "0",
+              "countPopulation": "BASELINE",
+              "durationSeconds": "86400"
+            },
+            {
+              "to": "2026-11-04T00:00:00+00:00",
+              "date": "2026-11-03",
+              "from": "2026-11-03T00:00:00+00:00",
+              "count": null,
+              "includedCount": 1,
+              "observedCount": 1,
+              "coverageStatus": "UNKNOWN",
+              "coveredSeconds": "0",
+              "countPopulation": "BASELINE",
+              "durationSeconds": "86400"
+            },
+            {
+              "to": "2026-11-05T00:00:00+00:00",
+              "date": "2026-11-04",
+              "from": "2026-11-04T00:00:00+00:00",
+              "count": null,
+              "includedCount": 1,
+              "observedCount": 1,
+              "coverageStatus": "UNKNOWN",
+              "coveredSeconds": "0",
+              "countPopulation": "BASELINE",
+              "durationSeconds": "86400"
+            },
+            {
+              "to": "2026-11-06T00:00:00+00:00",
+              "date": "2026-11-05",
+              "from": "2026-11-05T00:00:00+00:00",
+              "count": null,
+              "includedCount": 1,
+              "observedCount": 1,
+              "coverageStatus": "UNKNOWN",
+              "coveredSeconds": "0",
+              "countPopulation": "BASELINE",
+              "durationSeconds": "86400"
+            },
+            {
+              "to": "2026-11-07T00:00:00+00:00",
+              "date": "2026-11-06",
+              "from": "2026-11-06T00:00:00+00:00",
+              "count": null,
+              "includedCount": 1,
+              "observedCount": 1,
+              "coverageStatus": "UNKNOWN",
+              "coveredSeconds": "0",
+              "countPopulation": "BASELINE",
+              "durationSeconds": "86400"
+            },
+            {
+              "to": "2026-11-08T00:00:00+00:00",
+              "date": "2026-11-07",
+              "from": "2026-11-07T00:00:00+00:00",
+              "count": null,
+              "includedCount": 1,
+              "observedCount": 1,
+              "coverageStatus": "UNKNOWN",
+              "coveredSeconds": "0",
+              "countPopulation": "BASELINE",
+              "durationSeconds": "86400"
+            },
+            {
+              "to": "2026-11-09T00:00:00+00:00",
+              "date": "2026-11-08",
+              "from": "2026-11-08T00:00:00+00:00",
+              "count": null,
+              "includedCount": 1,
+              "observedCount": 1,
+              "coverageStatus": "UNKNOWN",
+              "coveredSeconds": "0",
+              "countPopulation": "BASELINE",
+              "durationSeconds": "86400"
+            },
+            {
+              "to": "2026-11-09T23:45:09.038992+00:00",
+              "date": "2026-11-09",
+              "from": "2026-11-09T00:00:00+00:00",
+              "count": null,
+              "includedCount": 0,
+              "observedCount": 0,
+              "coverageStatus": "UNKNOWN",
+              "coveredSeconds": "0",
+              "countPopulation": "BASELINE",
+              "durationSeconds": "85509.038992"
+            }
+          ],
+          "feedbackRevision": 34,
+          "observedDynamics": {
+            "prior": {
+              "to": "2026-11-02T23:45:09.038992+00:00",
+              "days": 23,
+              "from": "2026-10-10T23:45:09.038992+00:00",
+              "count": 13,
+              "activeDays": 13,
+              "totalAmount": "1300.00",
+              "amountPerDay": null,
+              "medianAmount": "100.00",
+              "operationsPerDay": null,
+              "completeObservation": false
+            },
+            "short": {
+              "to": "2026-11-09T23:45:09.038992+00:00",
+              "days": 7,
+              "from": "2026-11-02T23:45:09.038992+00:00",
+              "count": 7,
+              "activeDays": 7,
+              "totalAmount": "700.00",
+              "amountPerDay": null,
+              "medianAmount": "100.00",
+              "operationsPerDay": null,
+              "completeObservation": false
+            },
+            "status": "UNKNOWN_COVERAGE",
+            "policyVersion": "profile-dynamics-v1",
+            "countRateDelta": null,
+            "countRateRatio": null,
+            "interpretation": "DESCRIPTIVE_NOT_RISK",
+            "amountRateDelta": null,
+            "amountRateRatio": null,
+            "medianAmountDelta": "0.00000000",
+            "sufficientSamples": false,
+            "overlappingPeriods": false
+          },
+          "operationsPerDay": null,
+          "weekdayCountsUtc": {
+            "0": 2,
+            "1": 3,
+            "2": 3,
+            "3": 3,
+            "4": 3,
+            "5": 3,
+            "6": 3
+          },
+          "confidenceMeaning": "SAMPLE_FILL_ONLY_NOT_PROBABILITY",
+          "counterpartyCount": 0,
+          "feedbackReference": {
+            "revision": 34,
+            "capturedAt": "2026-11-09T23:46:09.363938+00:00",
+            "policyHash": "c4312c6b991e293a0e644698908c178c50db7044cb9c5c006c124f8c5834f03f",
+            "knowledgeMode": "WITH_CURRENT_KNOWLEDGE",
+            "policyVersion": "CONFIRMED_UNUSUAL_EXCLUSION-v1"
+          },
+          "historyPolicyHash": "c4312c6b991e293a0e644698908c178c50db7044cb9c5c006c124f8c5834f03f",
+          "topCounterparties": [
+            {
+              "id": null,
+              "kind": "UNKNOWN",
+              "count": 20,
+              "countShare": "1.00000000",
+              "amountShare": "1.00000000",
+              "totalAmount": "2000.00"
+            }
+          ],
+          "dailyCountsMeaning": "INCLUDED_BASELINE_POSITIVE_COUNTS_ONLY; observed.dailyCounts retains registered activity",
+          "observedHistoryIds": [
+            "4a57ac67-cf6c-49f4-8dc6-51f044d98d81",
+            "37170df5-5a28-4fb7-9b03-52d1eb6215e8",
+            "b3cc5876-6041-44be-9a9a-3d31739cf86a",
+            "51e93439-14ac-4897-b625-215454af8656",
+            "112b2cad-40df-4879-b8c6-75ceefe4f739",
+            "ec2918e0-8cfe-4374-981d-dbd061fe6410",
+            "a3f70e05-9900-485f-b415-1049b338342c",
+            "bb1fd2bf-aece-4d5c-b2b9-0dc4dbf286d2",
+            "7f6f7c3d-aec3-4cb3-90e9-dd9f66811102",
+            "f31bc3db-8008-4943-8aa8-e5c8bd9cc3ce",
+            "77634f56-2cb9-4c3b-be8b-079fd657e6e6",
+            "ef2319f2-5887-4e5b-9041-b6057599e67d",
+            "0f624f2e-dc50-4f96-b0b0-ac645f1a5544",
+            "0a35ea89-d793-4a22-92b1-9e33d22e7595",
+            "649c8790-2bd1-4e07-a2a5-acb2d7fca603",
+            "02c7bc71-c425-4e8b-9008-79d83b868e07",
+            "89bf2b72-0516-4a50-be1b-683cd9598bef",
+            "89acb356-79c9-4317-a9f9-acf7e05e93fc",
+            "f186bbcf-ae10-4f88-ac7d-20b40679a0eb",
+            "0e8dc4e5-65ce-4602-af0d-1a7facb75e37"
+          ],
+          "knownCounterparties": [],
+          "rateDenominatorDays": null,
+          "confidenceDeprecated": true,
+          "dataStatusDeprecated": true,
+          "historyPolicyVersion": "CONFIRMED_UNUSUAL_EXCLUSION-v1",
+          "knownCounterpartyHHI": null,
+          "metricsSchemaVersion": 4,
+          "interarrivalQ25Seconds": "86400",
+          "interarrivalQ75Seconds": "86400",
+          "interarrivalMedianSeconds": "86400",
+          "knownCounterpartyFraction": "0.00000000"
+        },
+        "metadata": {
+          "id": "7da347f7-1bc7-4b48-a4e3-c3b1c21c54da",
+          "asOf": "2026-11-09T23:45:09.038992+00:00",
+          "origin": "EVENT",
+          "version": 1,
+          "clientId": "2abef8fc-6084-4b97-b597-811cfa9fc986",
+          "currency": "BYN",
+          "createdAt": "2026-11-09T23:46:09.150343+00:00",
+          "direction": "OUT",
+          "windowDays": 30,
+          "calculationId": "645f09b2-fb7f-43ee-a3bb-e4e2f8fdcba6",
+          "metricsSchemaVersion": 4
+        },
+        "servedAt": "2026-11-09T23:46:10.145553+00:00",
+        "schemaVersion": 1,
+        "reportAvailability": "PLANNED_STAGE8"
+      }
+    },
+    "author": {
+      "id": "c40b1773-608c-4e05-a438-6fd6440af884",
+      "role": "MANAGER",
+      "login": "report_manager"
+    },
+    "cutoff": "2026-11-09T23:46:10.094029+00:00",
+    "filters": {
+      "reportType": "PROFILE",
+      "profileVersionId": "7da347f7-1bc7-4b48-a4e3-c3b1c21c54da"
+    },
+    "reportType": "PROFILE",
+    "sourceCuts": [
+      {
+        "owner": "transaction",
+        "cutoff": "2026-11-09T23:46:10.094029+00:00",
+        "capturedAt": "2026-11-09T23:46:10.177859+00:00",
+        "referencesHash": "56681056d6a7c10830fe46c1ae0688961822cf60a429fb64429a2d8bbf9154d6"
+      },
+      {
+        "owner": "analysis",
+        "cutoff": "2026-11-09T23:46:10.094029+00:00",
+        "capturedAt": "2026-11-09T23:46:10.146182+00:00",
+        "referencesHash": "377bdca11b608d9c297d5e7de432d06a72c8b264dbc5e9018545456f8716220b"
+      }
+    ],
+    "assembledAt": "2026-11-09T23:46:10.179220+00:00",
+    "consistency": "OWNER_SNAPSHOTS_NOT_GLOBAL_ATOMIC",
+    "completeness": "COMPLETE",
+    "reportSchemaVersion": 1
+  },
+  "snapshotHash": "2ddd8a46b1318442689833691ba2adc96242c2c1e476b9e3795b0df1c7751da9"
+}

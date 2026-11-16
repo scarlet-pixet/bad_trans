@@ -1,0 +1,384 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$defs": {
+    "ProfileVersion": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "schemaVersion": {
+          "const": 1
+        },
+        "metadata": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "id": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "clientId": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "currency": {
+              "type": "string",
+              "pattern": "^[A-Z]{3}$"
+            },
+            "direction": {
+              "enum": [
+                "IN",
+                "OUT"
+              ]
+            },
+            "windowDays": {
+              "enum": [
+                7,
+                30,
+                90
+              ]
+            },
+            "version": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "origin": {
+              "enum": [
+                "EVENT",
+                "MANUAL",
+                "SCHEDULED"
+              ]
+            },
+            "asOf": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "createdAt": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "calculationId": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "metricsSchemaVersion": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": [
+            "id",
+            "clientId",
+            "currency",
+            "direction",
+            "windowDays",
+            "version",
+            "origin",
+            "asOf",
+            "createdAt",
+            "calculationId",
+            "metricsSchemaVersion"
+          ]
+        },
+        "metrics": {
+          "type": "object",
+          "description": "Immutable versioned legacy metrics payload; fields vary with metricsSchemaVersion, preserved verbatim."
+        },
+        "servedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "reportAvailability": {
+          "enum": [
+            "PLANNED_STAGE8",
+            "AVAILABLE"
+          ]
+        }
+      },
+      "required": [
+        "schemaVersion",
+        "metadata",
+        "metrics",
+        "servedAt",
+        "reportAvailability"
+      ]
+    },
+    "ResultHistory": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "schemaVersion": {
+          "const": 1
+        },
+        "transactionId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "items": {
+          "type": "array",
+          "maxItems": 100,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "resultId": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "runId": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "calculatedAt": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "assessmentScore": {
+                "anyOf": [
+                  {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 100
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "legacyScore": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 100
+              },
+              "assessmentStatus": {
+                "enum": [
+                  "COMPLETE",
+                  "PARTIAL",
+                  "UNAVAILABLE",
+                  "LEGACY"
+                ]
+              }
+            },
+            "required": [
+              "resultId",
+              "runId",
+              "calculatedAt",
+              "assessmentScore",
+              "legacyScore",
+              "assessmentStatus"
+            ]
+          }
+        },
+        "nextPageToken": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "schemaVersion",
+        "transactionId",
+        "items",
+        "nextPageToken"
+      ]
+    },
+    "ProfileRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "format": "uuid"
+        }
+      },
+      "required": [
+        "id"
+      ]
+    },
+    "HistoryRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "transactionId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "limit": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100
+        },
+        "pageToken": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 1024
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "transactionId",
+        "limit",
+        "pageToken"
+      ]
+    },
+    "CaseGrantRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "transactionId": {
+          "type": "string",
+          "format": "uuid"
+        }
+      },
+      "required": [
+        "transactionId"
+      ]
+    },
+    "CaseGrant": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "allowed": {
+          "const": true
+        }
+      },
+      "required": [
+        "allowed"
+      ]
+    },
+    "ProfileComparison": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "group",
+        "first",
+        "second",
+        "methodComparable",
+        "rows",
+        "counterparties",
+        "operations",
+        "operationPopulation",
+        "listLimit"
+      ],
+      "properties": {
+        "schemaVersion": {
+          "const": 1
+        },
+        "group": {
+          "type": "object"
+        },
+        "first": {
+          "type": "object"
+        },
+        "second": {
+          "type": "object"
+        },
+        "methodComparable": {
+          "type": "boolean"
+        },
+        "rows": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "key",
+              "label",
+              "unit",
+              "before",
+              "after",
+              "delta",
+              "percentChange",
+              "reason"
+            ],
+            "properties": {
+              "key": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "label": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "unit": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "before": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "after": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "delta": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "percentChange": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "reason": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            }
+          }
+        },
+        "counterparties": {
+          "type": "object"
+        },
+        "operations": {
+          "type": "object"
+        },
+        "operationPopulation": {
+          "const": "SAVED_INCLUDED_BASELINE"
+        },
+        "listLimit": {
+          "const": 200
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,26 @@
+# Root publication allowlist
+/*
+!/backend/
+!/frontend/
+!/infra/
+!/tests/
+!/tools/
+!/.streamlit/
+!/Dockerfile
+!/compose.yaml
+!/requirements.txt
+!/constraints.txt
+!/pytest.ini
+!/run.ps1
+!/README.md
+!/.env.example
+!/.gitignore
+!/.dockerignore
+
+# Local files inside the source directories
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.coverage*
+*.log

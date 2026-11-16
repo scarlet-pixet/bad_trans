@@ -1,0 +1,184 @@
+{
+  "id": "00000000-0000-0000-0000-000000000109",
+  "createdAt": "2026-11-09T23:38:38.622522+00:00",
+  "snapshot": {
+    "data": {
+      "cases": {
+        "axes": {
+          "cases": "cohort transactions; current status at capturedAt",
+          "newCases": "created_at in [from,to)",
+          "decisions": "decided_at in [from,to), <=cutoff; cycles counted separately"
+        },
+        "caseIds": [
+          "1a5ed0d1-8f45-4f8a-993f-34fa55e002a5"
+        ],
+        "outcomes": {},
+        "statuses": {
+          "ASSIGNED": 1
+        },
+        "caseCount": 1,
+        "decisions": [],
+        "decidedCases": 0,
+        "decisionCount": 0,
+        "newCasesInPeriod": 1
+      },
+      "analysis": {
+        "axes": {
+          "results": "latest calculated_at<=cutoff per cohort transaction; UUID breaks ties",
+          "profiles": "latest as_of<=cutoff per cohort group/window",
+          "diagnostics": "current status at capturedAt; created_at in [from,to); event failures are service-wide, not cohort failures"
+        },
+        "statuses": {
+          "LEGACY": 2,
+          "PARTIAL": 0,
+          "COMPLETE": 0,
+          "NO_RESULT": 2,
+          "UNAVAILABLE": 0
+        },
+        "resultRefs": [
+          {
+            "id": "8dce22cf-ca8b-4ab2-b904-3acef65371e2",
+            "score": 70,
+            "run_id": "89986dc2-06f7-4b85-a29b-b41338ffbe55",
+            "data_status": "SUFFICIENT",
+            "calculated_at": "2026-11-08T12:00:00+00:00",
+            "transaction_id": "5e05e1a9-ff55-458c-8c4c-f33ea280dd1e",
+            "review_required": null,
+            "assessment_score": null,
+            "assessment_status": null
+          },
+          {
+            "id": "65820e63-c48b-4d09-b3f4-0b42b328c78e",
+            "score": 0,
+            "run_id": "89986dc2-06f7-4b85-a29b-b41338ffbe55",
+            "data_status": "SUFFICIENT",
+            "calculated_at": "2026-11-08T12:00:00+00:00",
+            "transaction_id": "fd421533-a23f-4e46-8536-1435d183ee96",
+            "review_required": null,
+            "assessment_score": null,
+            "assessment_status": null
+          }
+        ],
+        "windowDays": 30,
+        "denominator": 4,
+        "profileRefs": [
+          {
+            "id": "f7996c8d-587e-4176-86f7-61c911881e77",
+            "version": 1,
+            "clientId": "10d6e539-e5c2-4d80-a14d-2b4a64bf8df7",
+            "currency": "BYN",
+            "direction": "OUT"
+          }
+        ],
+        "resultCount": 2,
+        "profiledGroups": 1,
+        "resultCoverage": 0.5,
+        "readyProfileGroups": 0,
+        "refreshJobsByStatus": {},
+        "usableAssessmentCount": 2,
+        "eventFailuresAllClients": {},
+        "profileGroupDenominator": 3,
+        "usableAssessmentCoverage": 0.5
+      },
+      "transactions": {
+        "axis": "occurred_at; ingested_at<=cutoff; [from,to)",
+        "cohort": [
+          {
+            "id": "25ae7a3d-e716-40b8-8279-735e41bfb891",
+            "amount": "7.00",
+            "clientId": "10d6e539-e5c2-4d80-a14d-2b4a64bf8df7",
+            "currency": "USD",
+            "direction": "IN",
+            "ingestedAt": "2026-11-08T12:00:00+00:00",
+            "occurredAt": "2026-11-08T12:00:00+00:00"
+          },
+          {
+            "id": "5e05e1a9-ff55-458c-8c4c-f33ea280dd1e",
+            "amount": "10.00",
+            "clientId": "10d6e539-e5c2-4d80-a14d-2b4a64bf8df7",
+            "currency": "BYN",
+            "direction": "OUT",
+            "ingestedAt": "2026-11-08T12:00:00+00:00",
+            "occurredAt": "2026-11-08T12:00:00+00:00"
+          },
+          {
+            "id": "94c2dba9-3ba3-4fa0-98c4-731db986c98c",
+            "amount": "5.00",
+            "clientId": "ed59db3d-ed49-4c71-9fe3-e936b6c3933a",
+            "currency": "BYN",
+            "direction": "OUT",
+            "ingestedAt": "2026-11-08T12:00:00+00:00",
+            "occurredAt": "2026-11-08T12:00:00+00:00"
+          },
+          {
+            "id": "fd421533-a23f-4e46-8536-1435d183ee96",
+            "amount": "20.00",
+            "clientId": "10d6e539-e5c2-4d80-a14d-2b4a64bf8df7",
+            "currency": "BYN",
+            "direction": "OUT",
+            "ingestedAt": "2026-11-08T12:00:00+00:00",
+            "occurredAt": "2026-11-08T12:00:00+00:00"
+          }
+        ],
+        "groups": [
+          {
+            "amount": "35.00",
+            "currency": "BYN",
+            "direction": "OUT",
+            "uniqueClients": 2,
+            "transactionCount": 3
+          },
+          {
+            "amount": "7.00",
+            "currency": "USD",
+            "direction": "IN",
+            "uniqueClients": 1,
+            "transactionCount": 1
+          }
+        ],
+        "uniqueClients": 2,
+        "transactionCount": 4
+      }
+    },
+    "author": {
+      "id": "7f8be07a-254f-42ce-9013-f6a536c96f5d",
+      "role": "MANAGER",
+      "login": "manager"
+    },
+    "cutoff": "2026-11-09T23:38:38.521123+00:00",
+    "filters": {
+      "period": {
+        "to": "2026-11-09T00:00:00+00:00",
+        "from": "2026-11-08T00:00:00+00:00"
+      },
+      "reportType": "PERIOD",
+      "windowDays": 30
+    },
+    "reportType": "PERIOD",
+    "sourceCuts": [
+      {
+        "owner": "transaction",
+        "cutoff": "2026-11-09T23:38:38.521123+00:00",
+        "capturedAt": "2026-11-09T23:38:38.535048+00:00",
+        "referencesHash": "f3a37d80e81a1c31e0c60a372daae472386b6213bde8cc704cbe2c8a059d42bd"
+      },
+      {
+        "owner": "analysis",
+        "cutoff": "2026-11-09T23:38:38.521123+00:00",
+        "capturedAt": "2026-11-09T23:38:38.563889+00:00",
+        "referencesHash": "8ed73c47b3fefcc81b00ef157605d76cdfe82ad4bf067cd111a86f958109afa3"
+      },
+      {
+        "owner": "case",
+        "cutoff": "2026-11-09T23:38:38.521123+00:00",
+        "capturedAt": "2026-11-09T23:38:38.607000+00:00",
+        "referencesHash": "ee4c20d831456b3a252e86682c73ea4f874bddfafa7edd0a33e13e81f6da273c"
+      }
+    ],
+    "assembledAt": "2026-11-09T23:38:38.622522+00:00",
+    "consistency": "OWNER_SNAPSHOTS_NOT_GLOBAL_ATOMIC",
+    "completeness": "COMPLETE",
+    "reportSchemaVersion": 1
+  },
+  "snapshotHash": "7a391549e8a4d082adf6c7724518511d3c6f4dd37d710296e2171ff71100f953"
+}

@@ -1,0 +1,13 @@
+**
+!requirements.txt
+!constraints.txt
+!backend/
+!backend/**
+!frontend/
+!frontend/**
+!infra/
+!infra/**
+!.streamlit/
+!.streamlit/**
+**/__pycache__
+**/*.pyc
