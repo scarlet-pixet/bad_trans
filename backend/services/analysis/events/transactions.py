@@ -5,7 +5,9 @@ import logging
 from psycopg.types.json import Jsonb
 
 from backend.common.events import utc, ident, make_event, add_outbox
+from backend.common.data import DomainError
 from backend.services.analysis.assessments.calculation import assess
+from backend.services.analysis.assessments.comparison import COMPARISON_POLICY, select_amount_basis
 from backend.services.analysis.assessments.requests import (
     freeze,
     history as request_history,
@@ -35,6 +37,7 @@ class AnalysisEventService:
         initiated_by=None,
         ingested_before=None,
         request_key=None,
+        frozen_context=None,
     ):
         event = dict(event)
         if ingested_before is not None:
@@ -46,6 +49,7 @@ class AnalysisEventService:
             rule_ids,
             request_key or "event:" + event["event_id"],
             knowledge_mode='WITH_CURRENT_KNOWLEDGE' if initiated_by else 'FIRST_REQUEST_KNOWLEDGE',
+            frozen_context=frozen_context,
         )
         context = request["context"]
         tx = context["transaction"]
@@ -59,7 +63,12 @@ class AnalysisEventService:
         baseline = next(v for v in versions if v["windowDays"] == 30)
         ids = set(baseline.get('observedHistoryIds',baseline["history_ids"]))
         selected = [r for r in rows if r["id"] in ids]
-        assessment = assess(tx, baseline, selected, rules)
+        comparison = context.get("comparisonPolicy")
+        if comparison is not None and comparison != COMPARISON_POLICY:
+            raise DomainError("CONFLICT", "Версия выбора базы оценки не поддерживается")
+        basis, amount_profile = select_amount_basis(tx, baseline, rows, rules) if comparison else (None, None)
+        assessment = assess(tx, baseline, selected, rules, amount_profile=amount_profile,
+                            amount_basis_id=basis["id"] if basis else None)
         score = assessment["assessmentScore"]
         legacy_score = score if score is not None else 0
         status = (
@@ -182,6 +191,7 @@ class AnalysisEventService:
             baseline=baseline,
             explanations=explanations,
             behavioralSignals=[],
+            **({'amountBasis': basis} if basis else {}),
             summary=summary,
             scoreIsCompatibilityProjection=score is None,
             feedbackReference=context.get('feedbackReference'),

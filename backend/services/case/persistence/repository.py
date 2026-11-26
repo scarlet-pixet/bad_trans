@@ -4,23 +4,32 @@ from uuid import uuid4
 from backend.services.case.persistence.models import Notification
 from backend.common.data import DomainError, model
 from backend.common.commands import command
-from backend.common.data import DomainError, uuid, period, pagination, paged, model
+from backend.common.navigation import seek
+from backend.services.case.persistence.navigation import case_page
 from backend.services.case.persistence.models import Report
 from backend.services.case.notifications import notification_job
 
 class CaseRepository(Repository):
 
-    def enrich(self, rows):
+    def enrich(self, rows, connection=None):
+        if not rows:
+            return []
         ids = [r['id'] for r in rows]
-        comments = self.db.query('SELECT * FROM case_comments WHERE case_id=ANY(%s::uuid[]) ORDER BY created_at,id', (ids,)) if ids else []
-        decisions = self.db.query('SELECT * FROM case_decisions WHERE case_id=ANY(%s::uuid[]) ORDER BY review_cycle,id', (ids,)) if ids else []
+
+        def query(statement):
+            if connection is not None:
+                return connection.execute(statement, (ids,)).fetchall()
+            return self.db.query(statement, (ids,))
+
+        comments = query('SELECT * FROM case_comments WHERE case_id=ANY(%s::uuid[]) ORDER BY created_at,id')
+        decisions = query('SELECT * FROM case_decisions WHERE case_id=ANY(%s::uuid[]) ORDER BY review_cycle,id')
         return [model(Case, r, comments=[model(Comment, x) for x in comments if x['case_id'] == r['id']], decisions=[model(Decision, x) for x in decisions if x['case_id'] == r['id']]) for r in rows]
 
     def case(self, id):
         rows = self.db.query('SELECT * FROM review_cases WHERE id=%s', (id,))
         return self.enrich(rows)[0] if rows else None
 
-    def cases(self, filters, page):
+    def cases(self, filters, page, analyst_id=None):
         clauses, params = ([], [])
         for key, col in [('status', 'status'), ('priority', 'priority'), ('assigneeId', 'assignee_id'), ('clientId', 'client_id')]:
             if key in filters:
@@ -29,8 +38,7 @@ class CaseRepository(Repository):
         if 'period' in filters:
             clauses.extend(['created_at>=%s', 'created_at<%s'])
             params.extend(filters['period'])
-        rows, total = self.page_rows('SELECT * FROM review_cases', clauses, params, page)
-        return (self.enrich(rows), total)
+        return case_page(self.db, clauses, params, page, analyst_id, self.enrich)
 
     def report(self, id):
         return model(Report, self.db.one('SELECT * FROM reports WHERE id=%s', (id,)))
@@ -38,10 +46,14 @@ class CaseRepository(Repository):
     def notifications(self, recipient, unread, page):
         clauses = ['recipient_id=%s']
         params = [recipient]
-        if unread:
-            clauses.append('read_at IS NULL')
-        rows, total = self.page_rows('SELECT * FROM notifications', clauses, params, page)
-        return ([model(Notification, r) for r in rows], total)
+        return seek(self.db, 'SELECT * FROM notifications', clauses, params, page,
+                    lambda rows: [model(Notification, row) for row in rows], unread=unread)
+
+    def notification(self, identifier, recipient):
+        return model(Notification, self.db.one(
+            "SELECT * FROM notifications WHERE id=%s AND recipient_id=%s",
+            (identifier, recipient),
+        ))
 
     def _execute_command(self, actor, name, key, payload, perform):
         with self.db.connect() as conn:
@@ -56,19 +68,6 @@ class CaseRepository(Repository):
 
     def report_visible_to(self, id, author_id):
         return model(Report, self.db.one('SELECT * FROM reports WHERE id=%s AND author_id=%s', (id, author_id)))
-
-    def cases_visible_to(self, filters, page, analyst_id):
-        clauses = ["(assignee_id=%s OR (assignee_id IS NULL AND status='NEW'))"]
-        params = [analyst_id]
-        for key, column in (('status', 'status'), ('priority', 'priority'), ('assigneeId', 'assignee_id'), ('clientId', 'client_id')):
-            if key in filters:
-                clauses.append(column + '=%s')
-                params.append(filters[key])
-        if 'period' in filters:
-            clauses.extend(['created_at >= %s', 'created_at < %s'])
-            params.extend(filters['period'])
-        rows, total = self.page_rows('SELECT * FROM review_cases', clauses, params, page)
-        return (self.enrich(rows), total)
 
     def execute(self, actor, name, key, payload, perform):
 

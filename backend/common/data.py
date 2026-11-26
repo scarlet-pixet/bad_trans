@@ -1,9 +1,9 @@
 from __future__ import annotations
-from dataclasses import dataclass, fields
+from dataclasses import fields
 from datetime import datetime
 from decimal import Decimal, InvalidOperation
 from uuid import UUID
-import base64, json, re
+import re
 import psycopg
 from psycopg.rows import dict_row
 
@@ -51,40 +51,6 @@ def model(cls, row, **extra):
     values.update(extra)
     return cls(**{f.name: values[f.name] for f in fields(cls) if f.name in values})
 
-@dataclass(frozen=True)
-class Page:
-    limit: int
-    offset: int
-    sort: str
-    direction: str
-
-def pagination(value, allowed, default):
-    value = value or {}
-    limit = value.get('limit', 20)
-    sort = value.get('sortBy') or default
-    direction = value.get('sortDirection') or 'ASC'
-    if not isinstance(limit, int) or isinstance(limit, bool) or (not 1 <= limit <= 100):
-        raise DomainError('BAD_INPUT', 'limit должен быть от 1 до 100')
-    if sort not in allowed or direction not in ('ASC', 'DESC'):
-        raise DomainError('BAD_INPUT', 'Недопустимое поле или направление сортировки')
-    offset = 0
-    if value.get('cursor'):
-        try:
-            parsed = json.loads(base64.b64decode(value['cursor'], validate=True))
-            offset = parsed['offset']
-            if type(offset) is not int or not 0 <= offset <= 1000000 or parsed['sort'] != sort or (parsed['direction'] != direction):
-                raise ValueError()
-        except (ValueError, KeyError, TypeError, UnicodeDecodeError):
-            raise DomainError('BAD_INPUT', 'Некорректный курсор или изменена сортировка') from None
-    return Page(limit, offset, allowed[sort], direction)
-
-def paged(items, total, page, source):
-    source = source or {}
-    cursor = None
-    if page.offset + len(items) < total:
-        cursor = base64.b64encode(json.dumps({'offset': page.offset + len(items), 'sort': source.get('sortBy') or {'display_name': 'displayName', 'occurred_at': 'occurredAt', 'created_at': 'createdAt'}.get(page.sort, page.sort), 'direction': page.direction}).encode()).decode()
-    return {'items': items, 'totalCount': total, 'nextCursor': cursor}
-
 class Database:
     """Only a repository receives its owner's database handle."""
 
@@ -112,11 +78,3 @@ class Repository:
 
     def __init__(self, db: Database):
         self.db = db
-
-    def page_rows(self, select, clauses, params, page):
-        where = ' WHERE ' + ' AND '.join(clauses) if clauses else ''
-        with self.db.connect() as conn:
-            conn.execute('SET TRANSACTION ISOLATION LEVEL REPEATABLE READ')
-            total = conn.execute('SELECT count(*)::int AS n FROM (' + select + where + ') q', params).fetchone()['n']
-            rows = conn.execute('SELECT * FROM (' + select + where + ') q ORDER BY ' + page.sort + ' ' + page.direction + ', id ' + page.direction + ' LIMIT %s OFFSET %s', [*params, page.limit, page.offset]).fetchall()
-        return (rows, total)

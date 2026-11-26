@@ -139,7 +139,7 @@ class ProfileRefresh:
                 )
         return count
 
-    def drain(self, *, batch=2, budget_seconds: float = 20):
+    def drain(self, *, batch=2, budget_seconds: float = 45):
         if (
             type(batch) is not int
             or not 1 <= batch <= 100

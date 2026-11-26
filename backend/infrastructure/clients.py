@@ -1,11 +1,12 @@
 """Actual gRPC clients for all LR3-LR5 business ports."""
 import json
 import os
+from contextlib import contextmanager
 from datetime import datetime
 from types import SimpleNamespace
 
 import grpc
-from .resilience import channel_for, export_timeout
+from .resilience import HISTORY_CALCULATION_TIMEOUT, HISTORY_PREPARE_TIMEOUT, channel_for, export_timeout
 from google.protobuf.json_format import MessageToDict, ParseDict
 
 from backend.generated import bank_pb2 as bank, bank_pb2_grpc as bank_rpc
@@ -69,16 +70,22 @@ class RemoteClient:
     def _metadata(self):
         return (("x-service-token", self.service_token),)
 
-    def _invoke(self, method, arguments):
+    def _invoke(self, method, arguments, *, stub=None):
+        if stub is None:
+            with channel_for(self.address, self.owner) as channel:
+                return self._invoke(method, arguments, stub=rpc.BusinessServiceStub(channel))
         record = self.actor
         request = pb.InvocationRequest(
             method=method, actor_id=record["id"], actor_login=record["login"],
             actor_role=record["role"], arguments_json=json.dumps(arguments, default=str).encode(),
         )
+        timeout = 8
+        if method == "export_snapshot_report":
+            timeout = export_timeout()
+        elif method == "prepare_behavior_history":
+            timeout = HISTORY_PREPARE_TIMEOUT
         try:
-            with channel_for(self.address, self.owner) as channel:
-                response = rpc.BusinessServiceStub(channel).Invoke(request, timeout=export_timeout() if method == "export_snapshot_report" else 8,
-                                                                    metadata=self._metadata())
+            response = stub.Invoke(request, timeout=timeout, metadata=self._metadata())
         except grpc.RpcError as exc:
             raise DomainError("DEPENDENCY_UNAVAILABLE", f"gRPC {self.owner}: {exc.code().name}") from None
         if response.error_code:
@@ -95,9 +102,10 @@ class RemoteClient:
                                        ("x-actor-login", actor["login"]),
                                        ("x-actor-role", actor["role"]))
         stub_class = getattr(bank_rpc, self.owner.title() + "ServiceStub")
+        timeout = HISTORY_CALCULATION_TIMEOUT if operation in ("StartProfile", "StartAnalysis") else 8
         try:
             with channel_for(self.address, self.owner) as channel:
-                response = getattr(stub_class(channel), operation)(request, timeout=8,
+                response = getattr(stub_class(channel), operation)(request, timeout=timeout,
                                                                     metadata=metadata)
         except grpc.RpcError as exc:
             raise client_error(exc) from None
@@ -175,3 +183,14 @@ class EventTransactionClient(AnalysisTransactionClient):
         from backend.common.behavior_contract import validate
         validate("PageRequest", parameters)
         return validate("Page", self._invoke("get_behavior_history_page", {"parameters": parameters}))
+
+    @contextmanager
+    def history_page_reader(self):
+        with channel_for(self.address, self.owner) as channel:
+            stub = rpc.BusinessServiceStub(channel)
+
+            def read(parameters):
+                # The history reader validates each response against the pinned snapshot.
+                return self._invoke("get_behavior_history_page", {"parameters": parameters}, stub=stub)
+
+            yield read

@@ -43,8 +43,13 @@ def migrate(db, owner: str, *, migrations_root: Path | None = None) -> None:
         for name, digest in applied.items():
             if name not in scripts:
                 raise ValueError(f"Applied migration file missing: {name}")
-            if digest is not None and digest != scripts[name][2]:
-                raise ValueError(f"Migration hash mismatch: {name}")
+            _, content, current_digest = scripts[name]
+            if digest is not None and digest != current_digest:
+                # Older checkouts could change only line endings between Windows and Linux.
+                normalized = content.replace(b"\r\n", b"\n")
+                candidates = (normalized, normalized.replace(b"\n", b"\r\n"))
+                if not any(hashlib.sha256(candidate).hexdigest() == digest for candidate in candidates):
+                    raise ValueError(f"Migration hash mismatch: {name}")
         maximum = max((scripts[name][0] for name in applied), default=4)
         for name, (number, content, digest) in sorted(scripts.items(), key=lambda item: item[1][0]):
             if name in applied:

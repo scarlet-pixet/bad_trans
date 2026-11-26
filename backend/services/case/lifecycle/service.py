@@ -1,10 +1,10 @@
 import base64, csv, io, json
-from backend.common.data import uuid, period, pagination, paged, DomainError
+from backend.common.navigation import navigation
 from backend.common.ports import AuthReadPort
 from uuid import uuid4
 from backend.common.data import DomainError, uuid
 from backend.common.commands import require_role, required_text
-from backend.common.data import DomainError, uuid, period, pagination, paged, model
+from backend.common.data import period, model
 from backend.services.case.persistence.models import Report
 
 class CaseService:
@@ -19,7 +19,9 @@ class CaseService:
             return None
         return result
 
-    def _search_all_cases(self, filter=None, page=None):
+    def search_cases(self, filter=None, page=None):
+        actor = self.auth_client.get_current_user()
+        require_role(actor, 'MANAGER', 'ANALYST', 'SYSTEM')
         filters = dict(filter or {})
         for key in ('clientId', 'assigneeId'):
             if key in filters:
@@ -30,9 +32,10 @@ class CaseService:
             raise DomainError('BAD_INPUT', 'Неизвестный статус')
         if 'priority' in filters and filters['priority'] not in ('LOW', 'MEDIUM', 'HIGH'):
             raise DomainError('BAD_INPUT', 'Неизвестный приоритет')
-        spec = pagination(page, {'id': 'id', 'createdAt': 'created_at', 'latestScore': 'latest_score'}, 'createdAt')
-        rows, total = self.repository.cases(filters, spec)
-        return paged(rows, total, spec, page)
+        spec = navigation(page, {'id': 'id', 'createdAt': 'created_at', 'latestScore': 'latest_score'},
+                          'createdAt', actor=actor, owner='cases', filters=filters)
+        analyst_id = actor.id if actor.role == 'ANALYST' else None
+        return self.repository.cases(filters, spec, analyst_id)
 
     def _get_report(self, id):
         return self.repository.report(uuid(id))
@@ -50,9 +53,16 @@ class CaseService:
 
     def list_notifications(self, unreadOnly=None, page=None):
         user = self.auth_client.get_current_user()
-        spec = pagination(page, {'id': 'id', 'createdAt': 'created_at'}, 'createdAt')
-        rows, total = self.repository.notifications(user.id, bool(unreadOnly), spec)
-        return paged(rows, total, spec, page)
+        require_role(user, 'MANAGER', 'ANALYST')
+        unread = bool(unreadOnly)
+        spec = navigation(page, {'id': 'id', 'createdAt': 'created_at'}, 'createdAt',
+                          actor=user, owner='notifications', filters={'unreadOnly': unread})
+        return self.repository.notifications(user.id, unread, spec)
+
+    def get_notification(self, id):
+        actor = self.auth_client.get_current_user()
+        require_role(actor, "ANALYST", "MANAGER")
+        return self.repository.notification(uuid(id), actor.id)
 
     def _change(self, actor, name, key, payload, perform, roles=('ANALYST',)):
         require_role(actor, *roles)
@@ -79,9 +89,12 @@ class CaseService:
 
         def perform(conn, row):
             self._version(row, expectedVersion)
-            if row['status'] not in ('NEW', 'ASSIGNED') or (row['assignee_id'] and str(row['assignee_id']) != actor.id):
-                raise DomainError('CONFLICT', 'Случай нельзя взять в работу')
-            conn.execute("UPDATE review_cases SET status='IN_PROGRESS',assignee_id=%s,row_version=row_version+1,updated_at=now() WHERE id=%s", (actor.id, case_id))
+            if row['status'] != 'ASSIGNED' or str(row['assignee_id']) != actor.id:
+                raise DomainError('CONFLICT', 'Взять случай в работу может только назначенный аналитик')
+            conn.execute(
+                "UPDATE review_cases SET status='IN_PROGRESS',row_version=row_version+1,updated_at=now() WHERE id=%s",
+                (case_id,),
+            )
         return self._change(actor, 'takeCase', idempotencyKey, payload, perform)
 
     def add_case_comment(self, actor, input):
@@ -158,21 +171,3 @@ class CaseService:
         if actor.role == 'ANALYST':
             return self.repository.report_visible_to(uuid(id), actor.id)
         return self._get_report(id)
-
-    def search_cases(self, filter=None, page=None):
-        actor = self.auth_client.get_current_user()
-        if actor.role != 'ANALYST':
-            return self._search_all_cases(filter, page)
-        filters = dict(filter or {})
-        for key in ('clientId', 'assigneeId'):
-            if key in filters:
-                filters[key] = uuid(filters[key])
-        if 'period' in filters:
-            filters['period'] = period(filters['period'])
-        if 'status' in filters and filters['status'] not in ('NEW', 'ASSIGNED', 'IN_PROGRESS', 'ESCALATED', 'CLOSED'):
-            raise DomainError('BAD_INPUT', 'Неизвестный статус')
-        if 'priority' in filters and filters['priority'] not in ('LOW', 'MEDIUM', 'HIGH'):
-            raise DomainError('BAD_INPUT', 'Неизвестный приоритет')
-        spec = pagination(page, {'id': 'id', 'createdAt': 'created_at', 'latestScore': 'latest_score'}, 'createdAt')
-        rows, total = self.repository.cases_visible_to(filters, spec, actor.id)
-        return paged(rows, total, spec, page)

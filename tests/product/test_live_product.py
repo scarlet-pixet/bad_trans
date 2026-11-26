@@ -109,12 +109,12 @@ def test_end_to_end_source_profiles_explanations_queue_and_quality():
         return r if r["status"] == "COMPLETED" else None
 
     finished = wait_for(completed)
-    assert finished["processed"] == finished["total"] == 69
+    assert finished["processed"] == finished["total"] == 105
     if unknown_result:
         with psycopg.connect(host='127.0.0.1',port=int(os.environ['PRODUCT_TRANSACTION_DB_PORT']),dbname='bank_transaction',user='bank_transaction',password=settings['DB_PASSWORD'],row_factory=dict_row) as conn:
             found=conn.execute('SELECT count(*) AS n FROM source_records WHERE run_id=%s AND transaction_id=%s',(run['id'],unknown_result)).fetchone()
             total=conn.execute('SELECT count(DISTINCT transaction_id) AS n FROM source_records WHERE run_id=%s',(run['id'],)).fetchone()
-        assert found['n']==1 and total['n']==69
+        assert found['n']==1 and total['n']==105
 
     def quality_done():
         q = graphql(
@@ -123,9 +123,12 @@ def test_end_to_end_source_profiles_explanations_queue_and_quality():
         return q if q["pending"] == 0 else None
 
     quality = wait_for(quality_done)
-    assert quality["warmup"] == 36 and quality["evaluated"] == 33
-    assert quality["truePositive"] == 12
-    assert quality["falseNegative"] == 0
+    assert quality["warmup"] == 72 and quality["evaluated"] == 33
+    assert quality["unavailable"] == 0
+    assert quality["truePositive"] == 6 and quality["falsePositive"] == 0
+    # Frequency requires confirmed coverage. The source does not declare it.
+    assert quality["byScenario"]["frequency_burst"]["falseNegative"] == 6
+    assert quality["falseNegative"] == 6
     high = next(x for x in quality["examples"] if x["expected"] and x["predicted"])
     detection = graphql(
         "query($tx:ID!){detectionContext(transactionId:$tx)}",
@@ -158,6 +161,14 @@ def test_end_to_end_source_profiles_explanations_queue_and_quality():
         "query($id:ID!){caseContext(caseId:$id)}", {"id": case["id"]}, analyst
     )["caseContext"]
     assert context["transaction"]["id"] == high["transactionId"]
+    distribution = graphql(
+        "mutation($x:DistributionInput!){distributeCases(input:$x){assignments}}",
+        {"x": {"limit": 100, "idempotencyKey": uuid4().hex}}, manager,
+    )["distributeCases"]
+    assert any(row["caseId"] == case["id"] for row in distribution["assignments"])
+    case = graphql("query($id:ID!){reviewCase(id:$id){id status rowVersion}}",
+                   {"id": case["id"]}, manager)["reviewCase"]
+    assert case["status"] == "ASSIGNED"
     taken = graphql(
         "mutation($id:ID!,$v:Int!,$k:String!){takeCase(caseId:$id,expectedVersion:$v,idempotencyKey:$k){id status rowVersion}}",
         {"id": case["id"], "v": case["rowVersion"], "k": uuid4().hex},
@@ -181,14 +192,24 @@ def test_end_to_end_source_profiles_explanations_queue_and_quality():
         "behaviorProfiles"
     ]
     assert profiles
-    scheduled = wait_for(lambda: next((p for p in graphql('query($c:ID!){behaviorProfiles(clientId:$c,windowDays:30)}', {'c':context['transaction']['clientId']},manager)['behaviorProfiles'] if p['origin']=='SCHEDULED'), None), seconds=45)
-    assert scheduled['sampleSize']==23
+    def scheduled_after_feedback():
+        response = graphql(
+            "query($c:ID!){behaviorProfiles(clientId:$c,windowDays:30)}",
+            {"c": context["transaction"]["clientId"]}, manager,
+        )
+        return next((profile for profile in response["behaviorProfiles"]
+                     if profile["origin"] == "SCHEDULED" and profile.get("excludedCount") == 1), None)
+
+    scheduled = wait_for(scheduled_after_feedback, seconds=75)
+    assert scheduled["observedCount"] == 35
+    assert scheduled["sampleSize"] == 34
     assert context['detection']['resultId']==context['case']['latestResultId']
     dash = graphql("query{managerDashboard}", token=manager)["managerDashboard"]
     assert (
-        not dash["partialErrors"] and dash["components"]["analysis"]["analyzed"] >= 69
+        not dash["partialErrors"] and dash["components"]["analysis"]["analyzed"] >= 105
     )
     out = ROOT / "artifacts/product-20261105/live-proof.json"
+    out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(
         json.dumps(
             {

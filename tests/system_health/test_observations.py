@@ -1,5 +1,6 @@
 import os,json,subprocess
 from pathlib import Path
+from types import SimpleNamespace
 import pytest
 import psycopg
 from psycopg.rows import dict_row
@@ -25,7 +26,6 @@ def test_real_owner_activity_is_readonly():
 
 @pytest.mark.parametrize('failed',[False,True])
 def test_broker_background_observations_and_expiry(monkeypatch,failed):
-    from types import SimpleNamespace
     monkeypatch.setenv('KAFKA_BOOTSTRAP','isolated:9092')
     def probe(**kwargs):
         if failed:raise RuntimeError('private')
@@ -38,3 +38,34 @@ def test_broker_background_observations_and_expiry(monkeypatch,failed):
     monkeypatch.setattr(broker_health,'_observation',(True,stamp,0))
     monkeypatch.setattr(broker_health.time,'monotonic',lambda:21)
     assert broker_health.observation()==(None,stamp)
+
+
+def test_broker_probe_reconnects_after_a_failed_observation(monkeypatch):
+    states, connections = [], []
+    monkeypatch.setenv("KAFKA_BOOTSTRAP", "isolated:9092")
+    monkeypatch.setattr(broker_health, "_observation", (None, None, 0.0))
+
+    def admin(config):
+        assert config == {"bootstrap.servers": "isolated:9092"}
+        unavailable = not connections
+        connections.append(config)
+
+        def topics(timeout):
+            assert timeout == 0.5
+            if unavailable:
+                raise TimeoutError("broker changed")
+            return SimpleNamespace(brokers={1: "isolated"})
+
+        return SimpleNamespace(list_topics=topics)
+
+    def pause(_seconds):
+        states.append(broker_health.observation()[0])
+        if len(states) == 3:
+            raise StopIteration
+
+    monkeypatch.setattr(broker_health, "AdminClient", admin)
+    monkeypatch.setattr(broker_health.time, "sleep", pause)
+    with pytest.raises(StopIteration):
+        broker_health.loop()
+    assert states == [False, True, True]
+    assert len(connections) == 2

@@ -1,10 +1,17 @@
 """One metric calculation shared by canonical and legacy profile projections."""
 
+from contextlib import nullcontext
 from uuid import uuid4
 
 from psycopg.types.json import Jsonb
 
-from backend.common.behavior_contract import digest, validate
+from backend.common.behavior_contract import (
+    MAX_HISTORY_PAGE,
+    canonical,
+    digest,
+    digest_array,
+    validate,
+)
 from backend.common.data import DomainError
 from backend.services.analysis.profiles.metrics import ALGORITHM, METRICS_SCHEMA_VERSION, WINDOWS, build_metrics, timestamp
 
@@ -42,32 +49,33 @@ def read_snapshot_history(client, snapshot, *, deadline=None):
 
     snapshot = validate("Snapshot", snapshot)
     rows, token, seen_tokens = [], None, set()
-    while True:
-        if deadline is not None and time.monotonic() >= deadline:
-            raise TimeoutError("Profile history read budget exhausted")
-        page = validate(
-            "Page",
-            client.get_behavior_history_page(
-                dict(snapshotId=snapshot["snapshotId"], pageToken=token, limit=100)
-            ),
-        )
-        if any(
-            page[key] != snapshot[key] for key in ("snapshotId", "digest", "itemCount")
-        ):
-            raise DomainError("DATA_ACCESS_ERROR", "Inconsistent history snapshot page")
-        rows.extend(page["items"])
-        if len(rows) > snapshot["itemCount"] or len(rows) > 10000:
-            raise DomainError("DATA_ACCESS_ERROR", "History snapshot count mismatch")
-        token = page["nextPageToken"]
-        if not token:
-            break
-        if token in seen_tokens or not page["items"]:
-            raise DomainError("DATA_ACCESS_ERROR", "History pagination did not advance")
-        seen_tokens.add(token)
+    page_size = MAX_HISTORY_PAGE if snapshot["itemCount"] > 10000 else 100
+    open_reader = getattr(client, "history_page_reader", None)
+    reader = open_reader() if open_reader else nullcontext(client.get_behavior_history_page)
+    with reader as read_page:
+        while True:
+            if deadline is not None and time.monotonic() >= deadline:
+                raise TimeoutError("Profile history read budget exhausted")
+            page = validate(
+                "Page", read_page({"snapshotId": snapshot["snapshotId"], "pageToken": token, "limit": page_size})
+            )
+            if any(
+                page[key] != snapshot[key] for key in ("snapshotId", "digest", "itemCount")
+            ) or len(page["items"]) > page_size:
+                raise DomainError("DATA_ACCESS_ERROR", "Inconsistent history snapshot page")
+            rows.extend(page["items"])
+            if len(rows) > snapshot["itemCount"]:
+                raise DomainError("DATA_ACCESS_ERROR", "History snapshot count mismatch")
+            token = page["nextPageToken"]
+            if not token:
+                break
+            if token in seen_tokens or not page["items"]:
+                raise DomainError("DATA_ACCESS_ERROR", "History pagination did not advance")
+            seen_tokens.add(token)
     if (
         len(rows) != snapshot["itemCount"]
         or len({r["id"] for r in rows}) != len(rows)
-        or digest(rows) != snapshot["digest"]
+        or digest_array(canonical(row).encode("utf-8") for row in rows) != snapshot["digest"]
     ):
         raise DomainError("DATA_ACCESS_ERROR", "History snapshot digest/count mismatch")
     return HistoryBatch(rows, snapshot)

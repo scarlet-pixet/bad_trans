@@ -13,7 +13,9 @@ ROOT = Path(__file__).resolve().parents[2]
 EVIDENCE=Path(os.getenv('BAD_TRANS_EVIDENCE_DIR',str(ROOT/'artifacts/verification')))
 EVIDENCE.mkdir(parents=True,exist_ok=True)
 IDS = json.loads((ROOT / 'infra/seed_ids.json').read_text())
-ENV = dict((x.split('=', 1) for x in (ROOT / '.env').read_text().splitlines() if '=' in x))
+env_path = ROOT / '.env'
+ENV = dict(line.split('=', 1) for line in env_path.read_text(encoding='utf-8').splitlines()
+           if '=' in line) if env_path.exists() else {}
 API = os.getenv('GRAPHQL_URL','http://127.0.0.1:18100/graphql')
 
 def sql(owner, text, params=()):
@@ -88,13 +90,15 @@ def test_profile_rules_reanalysis_distribution_report_and_notifications():
     published = graphql(publish, {'x': rule}, token)['publishRuleVersion']
     assert published['status'] == 'PUBLISHED' and published['version'] == version
     assert graphql(publish, {'x': rule}, token)['publishRuleVersion'] == published
-    ids = [str(r['id']) for r in sql('analysis', "SELECT DISTINCT ON (rule_id) id FROM rule_versions WHERE status='PUBLISHED' ORDER BY rule_id,version DESC")]
+    catalog = graphql('query{ruleCatalog}', token=token)['ruleCatalog']
+    amount_rule = next(item for item in catalog if item['code'] == 'AMOUNT_DEVIATION')
+    ids = [amount_rule['versions'][0]['id']]
     params = {'period': {'from': '2026-09-30T11:00:00Z', 'to': '2026-09-30T12:00:00Z'}, 'clientId': IDS['client'], 'ruleVersionIds': ids, 'idempotencyKey': suffix}
     reanalyze = 'mutation($x:ReanalysisInput!){reanalyzePeriod(input:$x){id mode status counters}}'
     reanalysis = graphql(reanalyze, {'x': params}, token)['reanalyzePeriod']
     assert reanalysis['mode'] == 'REANALYSIS' and reanalysis['status'] == 'COMPLETED'
     assert graphql(reanalyze, {'x': params}, token)['reanalyzePeriod'] == reanalysis
-    assert sql('analysis', 'SELECT count(*) AS n FROM run_rule_versions WHERE run_id=%s', (reanalysis['id'],))[0]['n'] == 3
+    assert sql('analysis', 'SELECT count(*) AS n FROM run_rule_versions WHERE run_id=%s', (reanalysis['id'],))[0]['n'] == len(ids)
     compare = graphql('query($a:ID!,$b:ID!){compareRuns(firstId:$a,secondId:$b){commonCount onlyFirstCount onlySecondCount changedScores}}', {'a': run['id'], 'b': reanalysis['id']}, token)['compareRuns']
     assert compare['commonCount'] == 1
     distribution = graphql('mutation($x:DistributionInput!){distributeCases(input:$x){assignedCount unassignedCount assignments}}', {'x': {'limit': 100, 'idempotencyKey': suffix}}, token)['distributeCases']
@@ -113,9 +117,10 @@ def test_profile_rules_reanalysis_distribution_report_and_notifications():
     assert notifications
     marked = graphql('mutation($id:ID!){markNotificationRead(id:$id){id readAt}}', {'id': notifications[0]['id']}, token)['markNotificationRead']
     assert marked['readAt']
-    analyst_profile = graphql(q, {'x': {**p, 'idempotencyKey': uuid4().hex}}, analyst)['buildProfile']
-    assert analyst_profile['status'] == 'COMPLETED'
+    denied = requests.post(API, json={'query': q, 'variables': {'x': p}},
+                           headers={'Authorization': 'Bearer ' + analyst}, timeout=20)
+    assert denied.status_code == 403
     analyst_analysis = graphql(analyze, {'id': proof['transaction']['id'], 'key': uuid4().hex}, analyst)['analyzeTransaction']
     assert analyst_analysis['status'] == 'COMPLETED'
-    output = {'profileRun': profile, 'profileSampleSize': stored['sample_size'], 'manualRun': run, 'publishedRule': published, 'reanalysis': reanalysis, 'comparison': compare, 'distribution': distribution, 'report': report, 'analystOwnReport': own, 'analystProfileRun': analyst_profile, 'analystAnalysis': analyst_analysis, 'foreignReportHidden': True, 'csvDecoded': True, 'notificationRead': marked}
+    output = {'profileRun': profile, 'profileSampleSize': stored['sample_size'], 'manualRun': run, 'publishedRule': published, 'reanalysis': reanalysis, 'comparison': compare, 'distribution': distribution, 'report': report, 'analystOwnReport': own, 'analystAnalysis': analyst_analysis, 'foreignReportHidden': True, 'csvDecoded': True, 'notificationRead': marked}
     (EVIDENCE / 'completed-commands.json').write_text(json.dumps(output, ensure_ascii=False, indent=2), encoding='utf-8')

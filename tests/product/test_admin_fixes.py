@@ -20,7 +20,14 @@ def test_system_status_really_renders_without_streamlit_magic_error(ready):
     response.json.return_value = {'data': {'me': {'id': ADMIN, 'login': 'admin', 'role': 'ADMIN'}}, 'sources': []}
     # App initially opens Sources; return the correct payload for both queries.
     def post(_url, json, **_kwargs):
-        return Mock(status_code=200, json=lambda: {'data': {'me': {'id': ADMIN, 'login': 'admin', 'role': 'ADMIN'}}} if 'me{' in json['query'] else {'data': {'sources': []}})
+        query = json['query']
+        if 'me{' in query:
+            data = {'me': {'id': ADMIN, 'login': 'admin', 'role': 'ADMIN'}}
+        elif 'failureReviews' in query:
+            data = {'failureReviews': {'items': [], 'nextOffset': None}}
+        else:
+            data = {'sources': []}
+        return Mock(status_code=200, json=lambda: {'data': data})
     health = {'allReady': ready, 'services': [{'service': 'analysis', 'status': 'READY' if ready else 'UNAVAILABLE', 'database': 'bank_analysis', 'kafkaReady': ready}]}
     with patch('requests.post', side_effect=post), patch('requests.get', return_value=Mock(json=lambda: health)):
         app = AppTest.from_file(str(ROOT/'frontend/app.py'), default_timeout=15)

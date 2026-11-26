@@ -75,7 +75,7 @@ class Counterparty(_message.Message):
     def __init__(self, id: _Optional[str] = ..., external_id: _Optional[str] = ..., display_name: _Optional[str] = ..., category: _Optional[str] = ...) -> None: ...
 
 class Transaction(_message.Message):
-    __slots__ = ("id", "external_id", "source", "client_id", "account_id", "counterparty_id", "amount", "currency", "direction", "occurred_at", "ingested_at")
+    __slots__ = ("id", "external_id", "source", "client_id", "account_id", "counterparty_id", "amount", "currency", "direction", "occurred_at", "ingested_at", "time_precision", "operation_kind", "operation_channel")
     ID_FIELD_NUMBER: _ClassVar[int]
     EXTERNAL_ID_FIELD_NUMBER: _ClassVar[int]
     SOURCE_FIELD_NUMBER: _ClassVar[int]
@@ -87,6 +87,9 @@ class Transaction(_message.Message):
     DIRECTION_FIELD_NUMBER: _ClassVar[int]
     OCCURRED_AT_FIELD_NUMBER: _ClassVar[int]
     INGESTED_AT_FIELD_NUMBER: _ClassVar[int]
+    TIME_PRECISION_FIELD_NUMBER: _ClassVar[int]
+    OPERATION_KIND_FIELD_NUMBER: _ClassVar[int]
+    OPERATION_CHANNEL_FIELD_NUMBER: _ClassVar[int]
     id: str
     external_id: str
     source: str
@@ -98,7 +101,10 @@ class Transaction(_message.Message):
     direction: str
     occurred_at: _timestamp_pb2.Timestamp
     ingested_at: _timestamp_pb2.Timestamp
-    def __init__(self, id: _Optional[str] = ..., external_id: _Optional[str] = ..., source: _Optional[str] = ..., client_id: _Optional[str] = ..., account_id: _Optional[str] = ..., counterparty_id: _Optional[str] = ..., amount: _Optional[str] = ..., currency: _Optional[str] = ..., direction: _Optional[str] = ..., occurred_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., ingested_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
+    time_precision: str
+    operation_kind: str
+    operation_channel: str
+    def __init__(self, id: _Optional[str] = ..., external_id: _Optional[str] = ..., source: _Optional[str] = ..., client_id: _Optional[str] = ..., account_id: _Optional[str] = ..., counterparty_id: _Optional[str] = ..., amount: _Optional[str] = ..., currency: _Optional[str] = ..., direction: _Optional[str] = ..., occurred_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., ingested_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., time_precision: _Optional[str] = ..., operation_kind: _Optional[str] = ..., operation_channel: _Optional[str] = ...) -> None: ...
 
 class ImportError(_message.Message):
     __slots__ = ("row", "code", "message")
@@ -369,44 +375,52 @@ class ReportExport(_message.Message):
     def __init__(self, file_name: _Optional[str] = ..., media_type: _Optional[str] = ..., content_base64: _Optional[str] = ...) -> None: ...
 
 class ClientPage(_message.Message):
-    __slots__ = ("items", "next_cursor", "total_count")
+    __slots__ = ("items", "next_cursor", "total_count", "current_cursor")
     ITEMS_FIELD_NUMBER: _ClassVar[int]
     NEXT_CURSOR_FIELD_NUMBER: _ClassVar[int]
     TOTAL_COUNT_FIELD_NUMBER: _ClassVar[int]
+    CURRENT_CURSOR_FIELD_NUMBER: _ClassVar[int]
     items: _containers.RepeatedCompositeFieldContainer[Client]
     next_cursor: str
     total_count: int
-    def __init__(self, items: _Optional[_Iterable[_Union[Client, _Mapping]]] = ..., next_cursor: _Optional[str] = ..., total_count: _Optional[int] = ...) -> None: ...
+    current_cursor: str
+    def __init__(self, items: _Optional[_Iterable[_Union[Client, _Mapping]]] = ..., next_cursor: _Optional[str] = ..., total_count: _Optional[int] = ..., current_cursor: _Optional[str] = ...) -> None: ...
 
 class TransactionPage(_message.Message):
-    __slots__ = ("items", "next_cursor", "total_count")
+    __slots__ = ("items", "next_cursor", "total_count", "current_cursor")
     ITEMS_FIELD_NUMBER: _ClassVar[int]
     NEXT_CURSOR_FIELD_NUMBER: _ClassVar[int]
     TOTAL_COUNT_FIELD_NUMBER: _ClassVar[int]
+    CURRENT_CURSOR_FIELD_NUMBER: _ClassVar[int]
     items: _containers.RepeatedCompositeFieldContainer[Transaction]
     next_cursor: str
     total_count: int
-    def __init__(self, items: _Optional[_Iterable[_Union[Transaction, _Mapping]]] = ..., next_cursor: _Optional[str] = ..., total_count: _Optional[int] = ...) -> None: ...
+    current_cursor: str
+    def __init__(self, items: _Optional[_Iterable[_Union[Transaction, _Mapping]]] = ..., next_cursor: _Optional[str] = ..., total_count: _Optional[int] = ..., current_cursor: _Optional[str] = ...) -> None: ...
 
 class CasePage(_message.Message):
-    __slots__ = ("items", "next_cursor", "total_count")
+    __slots__ = ("items", "next_cursor", "total_count", "current_cursor")
     ITEMS_FIELD_NUMBER: _ClassVar[int]
     NEXT_CURSOR_FIELD_NUMBER: _ClassVar[int]
     TOTAL_COUNT_FIELD_NUMBER: _ClassVar[int]
+    CURRENT_CURSOR_FIELD_NUMBER: _ClassVar[int]
     items: _containers.RepeatedCompositeFieldContainer[ReviewCase]
     next_cursor: str
     total_count: int
-    def __init__(self, items: _Optional[_Iterable[_Union[ReviewCase, _Mapping]]] = ..., next_cursor: _Optional[str] = ..., total_count: _Optional[int] = ...) -> None: ...
+    current_cursor: str
+    def __init__(self, items: _Optional[_Iterable[_Union[ReviewCase, _Mapping]]] = ..., next_cursor: _Optional[str] = ..., total_count: _Optional[int] = ..., current_cursor: _Optional[str] = ...) -> None: ...
 
 class NotificationPage(_message.Message):
-    __slots__ = ("items", "next_cursor", "total_count")
+    __slots__ = ("items", "next_cursor", "total_count", "current_cursor")
     ITEMS_FIELD_NUMBER: _ClassVar[int]
     NEXT_CURSOR_FIELD_NUMBER: _ClassVar[int]
     TOTAL_COUNT_FIELD_NUMBER: _ClassVar[int]
+    CURRENT_CURSOR_FIELD_NUMBER: _ClassVar[int]
     items: _containers.RepeatedCompositeFieldContainer[Notification]
     next_cursor: str
     total_count: int
-    def __init__(self, items: _Optional[_Iterable[_Union[Notification, _Mapping]]] = ..., next_cursor: _Optional[str] = ..., total_count: _Optional[int] = ...) -> None: ...
+    current_cursor: str
+    def __init__(self, items: _Optional[_Iterable[_Union[Notification, _Mapping]]] = ..., next_cursor: _Optional[str] = ..., total_count: _Optional[int] = ..., current_cursor: _Optional[str] = ...) -> None: ...
 
 class PeriodInput(_message.Message):
     __slots__ = ("to",)
@@ -486,7 +500,7 @@ class CounterpartyInput(_message.Message):
     def __init__(self, external_id: _Optional[str] = ..., display_name: _Optional[str] = ..., category: _Optional[str] = ..., idempotency_key: _Optional[str] = ...) -> None: ...
 
 class TransactionInput(_message.Message):
-    __slots__ = ("source", "external_id", "account_id", "counterparty_id", "amount", "currency", "direction", "occurred_at", "idempotency_key")
+    __slots__ = ("source", "external_id", "account_id", "counterparty_id", "amount", "currency", "direction", "occurred_at", "idempotency_key", "time_precision")
     SOURCE_FIELD_NUMBER: _ClassVar[int]
     EXTERNAL_ID_FIELD_NUMBER: _ClassVar[int]
     ACCOUNT_ID_FIELD_NUMBER: _ClassVar[int]
@@ -496,6 +510,7 @@ class TransactionInput(_message.Message):
     DIRECTION_FIELD_NUMBER: _ClassVar[int]
     OCCURRED_AT_FIELD_NUMBER: _ClassVar[int]
     IDEMPOTENCY_KEY_FIELD_NUMBER: _ClassVar[int]
+    TIME_PRECISION_FIELD_NUMBER: _ClassVar[int]
     source: str
     external_id: str
     account_id: str
@@ -505,7 +520,8 @@ class TransactionInput(_message.Message):
     direction: str
     occurred_at: _timestamp_pb2.Timestamp
     idempotency_key: str
-    def __init__(self, source: _Optional[str] = ..., external_id: _Optional[str] = ..., account_id: _Optional[str] = ..., counterparty_id: _Optional[str] = ..., amount: _Optional[str] = ..., currency: _Optional[str] = ..., direction: _Optional[str] = ..., occurred_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., idempotency_key: _Optional[str] = ...) -> None: ...
+    time_precision: str
+    def __init__(self, source: _Optional[str] = ..., external_id: _Optional[str] = ..., account_id: _Optional[str] = ..., counterparty_id: _Optional[str] = ..., amount: _Optional[str] = ..., currency: _Optional[str] = ..., direction: _Optional[str] = ..., occurred_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., idempotency_key: _Optional[str] = ..., time_precision: _Optional[str] = ...) -> None: ...
 
 class ImportBatchInput(_message.Message):
     __slots__ = ("file_hash", "items", "idempotency_key")

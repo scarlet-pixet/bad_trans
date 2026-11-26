@@ -14,6 +14,17 @@ from jsonschema import Draft202012Validator, FormatChecker
 
 from backend.common.data import DomainError
 
+WORKER_TOPICS = {
+    "analysis": ("transaction.registered.v1", "case.feedback.v1"),
+    "case": ("analysis.completed.v1",),
+}
+
+
+def consumer_group_id(service, module_name="backend.infrastructure.workers"):
+    if module_name.startswith("backend.infrastructure"):
+        return f"bad_trans-{service}"
+    return f"bank-{service}-v1"
+
 
 def transient(error):
     if isinstance(error, DomainError):
@@ -42,8 +53,7 @@ def initialize(module):
 def inputs(module):
     handler = (module.AnalysisEventService(module.EventTransactionClient())
                if module.SERVICE == 'analysis' else module.CaseEventService())
-    topic = ('transaction.registered.v1' if module.SERVICE == 'analysis'
-             else 'analysis.completed.v1')
+    topic = WORKER_TOPICS[module.SERVICE][0]
     schema = Path(module.ROOT) / 'backend/contracts/events' / f'{topic}.schema.json'
     validator = Draft202012Validator(json.loads(schema.read_text()), format_checker=FormatChecker())
     return handler, topic, validator
@@ -54,8 +64,9 @@ def routes(module):
     handler,topic,validator=inputs(module)
     result={topic:(handler,validator)}
     if module.SERVICE=='analysis' and hasattr(module,'FeedbackEventService'):
-        path=Path(module.ROOT)/'backend/contracts/events/case.feedback.v1.schema.json'
-        result['case.feedback.v1']=(module.FeedbackEventService(),Draft202012Validator(json.loads(path.read_text(encoding='utf-8')),format_checker=FormatChecker()))
+        feedback = WORKER_TOPICS["analysis"][1]
+        path = Path(module.ROOT) / 'backend/contracts/events' / f'{feedback}.schema.json'
+        result[feedback]=(module.FeedbackEventService(),Draft202012Validator(json.loads(path.read_text(encoding='utf-8')),format_checker=FormatChecker()))
     return result
 
 
@@ -85,8 +96,7 @@ def consume_loop(module):
     dispatch=routes(module);primary=next(iter(dispatch))
     consumer = module.Consumer({
         'bootstrap.servers': module.os.environ['KAFKA_BOOTSTRAP'],
-        'group.id': ('bad_trans-' if module.__name__.startswith('backend.infrastructure') else 'bank-') + module.SERVICE
-                    + ('' if module.__name__.startswith('backend.infrastructure') else '-v1'),
+        'group.id': consumer_group_id(module.SERVICE, module.__name__),
         'auto.offset.reset': 'earliest', 'enable.auto.commit': False,
         'max.poll.interval.ms': 300000,
     })
@@ -148,6 +158,10 @@ def retry_loop(module):
         try:
             # Process at most one record per transaction/cycle. Transient outages
             # retain durable state without a tight infinite retry on one partition.
+            if getattr(module, 'manual_failure_reviews', False):
+                from backend.infrastructure.failure_review import retry_one
+                with module.connect() as connection:
+                    retry_one(module, connection, dispatch, process)
             with module.connect() as conn:
                 row = conn.execute("SELECT * FROM event_failures WHERE status='RETRY_PENDING' "
                                    'AND next_attempt_at<=now() ORDER BY next_attempt_at '

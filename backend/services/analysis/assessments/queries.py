@@ -1,10 +1,38 @@
 """Saved operation assessments, historical thresholds and quality queries."""
 from backend.common.commands import require_role
 from backend.common.data import DomainError, uuid
-from backend.services.analysis.assessments.behavior import evaluate_quality
+from backend.services.analysis.assessments.quality import comparison_example, summarize
 from backend.services.analysis.profiles.metrics import timestamp
+from backend.services.analysis.profiles.public_metrics import public_metrics
 
 class AssessmentQueries:
+    def get_rule_catalog(self, actor):
+        require_role(actor, "MANAGER")
+        rows = self.db.query("""SELECT r.id AS rule_id,r.code,v.id,v.version,v.weight,v.parameters
+            FROM analysis_rules r LEFT JOIN rule_versions v
+                ON v.rule_id=r.id AND v.status='PUBLISHED'
+            ORDER BY r.code,v.version DESC""")
+        catalog = {}
+        for row in rows:
+            rule_id = str(row["rule_id"])
+            rule = catalog.setdefault(rule_id, dict(id=rule_id, code=row["code"], versions=[]))
+            if row["id"] is not None:
+                rule["versions"].append(dict(id=str(row["id"]), version=row["version"],
+                                             weight=row["weight"], parameters=row["parameters"]))
+        return list(catalog.values())
+
+    def start_period_reassessment(self, actor, input):
+        from backend.services.analysis.assessments.period_worker import PeriodReassessment
+        return PeriodReassessment(self.db, self.client).start(actor, input)
+
+    def compare_period_runs(self, actor, firstId, secondId, offset=0, limit=50):
+        from backend.services.analysis.assessments.period_queries import compare
+        return compare(self.db, actor, firstId, secondId, offset, limit)
+
+    def get_period_run_results(self, actor, runId, offset=0, limit=100):
+        from backend.services.analysis.assessments.period_queries import get
+        return get(self.db, actor, runId, offset, limit)
+
     def get_result_history(self,actor,transactionId,limit=20,pageToken=None):
         from backend.services.analysis.profiles.workspace import WorkspaceService
         return WorkspaceService(self.db).get_result_history(actor,transactionId,limit,pageToken)
@@ -22,6 +50,10 @@ class AssessmentQueries:
         if not row:
             return None
         details: dict = dict(row["details"] or {"explanations": [], "profiles": [], "legacy": True})
+        if isinstance(details.get("baseline"), dict):
+            details["baseline"] = public_metrics(details["baseline"])
+        if details.get("profiles"):
+            details["profiles"] = [public_metrics(profile) for profile in details["profiles"]]
         if row.get("calculation_id"):
             links = self.db.query("""SELECT window_days,profile_version_id FROM analysis_result_profiles
                 WHERE result_id=%s ORDER BY window_days""", (row["id"],))
@@ -31,6 +63,7 @@ class AssessmentQueries:
         return {
             **details,
             "resultId": str(row["id"]),
+            "runId": str(row["run_id"]),
             "transactionId": str(row["transaction_id"]),
             "profileId": str(row["profile_id"]) if row["profile_id"] else None,
             "score": row["score"],
@@ -75,7 +108,7 @@ class AssessmentQueries:
         ids = [r["transaction_id"] for r in labels if r["transaction_id"]]
         rows = (
             self.db.query(
-                """SELECT DISTINCT ON(a.transaction_id) a.transaction_id,a.score,a.threshold,a.assessment_status,a.assessment_score
+                """SELECT DISTINCT ON(a.transaction_id) a.transaction_id,a.score,a.threshold,a.assessment_status,a.assessment_score,a.missing_reasons
             FROM analysis_results a JOIN analysis_runs r ON r.id=a.run_id
             WHERE a.transaction_id=ANY(%s::uuid[]) AND r.mode='AUTO'
             ORDER BY a.transaction_id,a.calculated_at DESC,a.id DESC""",
@@ -84,28 +117,17 @@ class AssessmentQueries:
             if ids
             else []
         )
-        predictions = {
-            str(r["transaction_id"]): None if r["assessment_status"]=='UNAVAILABLE' else
-                (r["assessment_score"] if r["assessment_status"] else r["score"]) >= r["threshold"] for r in rows
-        }
-        examples = [
-            {
-                "scenario": r["scenario"],
-                "transactionId": r["transaction_id"],
-                "expected": r["expected"],
-                "predicted": predictions.get(r["transaction_id"]),
-            }
-            for r in labels
-        ]
+        results = {str(row["transaction_id"]): row for row in rows}
+        examples = [comparison_example(row, results.get(row["transaction_id"])) for row in labels]
         scenarios = sorted(
             {r["scenario"] for r in examples if r["expected"] is not None}
         )
         return {
             "runId": runId,
-            **evaluate_quality(examples),
+            **summarize(examples),
             "examples": examples,
             "byScenario": {
-                name: evaluate_quality([r for r in examples if r["scenario"] == name])
+                name: summarize([r for r in examples if r["scenario"] == name])
                 for name in scenarios
             },
             "scope": "synthetic chronological scenarios; not an estimate of real banking accuracy",

@@ -106,7 +106,8 @@ def test_unavailable_is_not_false_normal_and_legacy_rows_untouched(database):
     q = ProfileService(db, Labels()).get_quality(
         SimpleNamespace(role="MANAGER", is_active=True), str(uuid4())
     )
-    assert q["pending"] == 1 and q["evaluated"] == 0
+    assert q["pending"] == 0 and q["unavailable"] == 1 and q["evaluated"] == 0
+    assert q["examples"][0]["predicted"] is None
     assert (
         db.one(
             "SELECT count(*) AS n FROM analysis_results WHERE assessment_status IS NULL"

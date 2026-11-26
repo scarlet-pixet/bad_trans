@@ -1,0 +1,4 @@
+# Preserve the bytes of additive SQL already fingerprinted by PostgreSQL.
+infra/postgres/**/00[5-9]_*.sql -text whitespace=cr-at-eol
+infra/postgres/**/0[1-9][0-9]_*.sql -text whitespace=cr-at-eol
+infra/postgres/**/[1-9][0-9][0-9]_*.sql -text whitespace=cr-at-eol

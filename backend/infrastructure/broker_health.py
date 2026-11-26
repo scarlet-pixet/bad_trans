@@ -25,5 +25,7 @@ def loop():
             ready = bool(client.list_topics(timeout=0.5).brokers)
         except Exception:
             ready = False
+        if not ready:
+            client = None
         _observation = (ready, datetime.now(UTC).isoformat(), time.monotonic())
         time.sleep(2)

@@ -140,6 +140,9 @@ def test_new_result_arrival_does_not_replace_selected_result_and_access_is_reche
     seen = []
 
     def api(q, a=None):
+        if "operationProcessing" in q:
+            assert state["denied"]
+            return None
         if "resultHistory" in q:
             if state["denied"]:
                 return None
@@ -168,6 +171,7 @@ def test_new_result_arrival_does_not_replace_selected_result_and_access_is_reche
         state["denied"] = True
         app.run()
         assert seen == ["old", "old"] and not app.selectbox and not app.exception
+        assert any("не удалось подтвердить" in notice.value for notice in app.warning)
 
 
 def test_frozen_profile_page_next_previous_and_filter_reset():

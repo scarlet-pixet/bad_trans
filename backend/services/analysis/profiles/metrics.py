@@ -112,15 +112,12 @@ def counterparties(history, amounts):
 
 
 def eligibility(
-    history, days, intervals, calendar, hours, cp, cutoff, event_mode=False
+    history, days, intervals, hour_intervals, full_hour_days, hours, cp, cutoff, event_mode=False
 ):
     """Data readiness only; these flags do not execute or score a check."""
     n = len(history)
     active = len({timestamp(row["occurredAt"]).date() for row in history})
-    full_days = sum(
-        b["coverageStatus"] == "COMPLETE" and Decimal(b["durationSeconds"]) == 86400
-        for b in calendar
-    )
+    exact_history = all(row.get("timePrecision") != "DATE" for row in history)
     flags = {}
 
     def flag(name, conditions, required):
@@ -137,7 +134,8 @@ def eligibility(
         [
             (n >= 100, "SAMPLE_SIZE_LT_100"),
             (active >= 14, "ACTIVE_DAYS_LT_14"),
-            (full_days >= 28, "CONFIRMED_DAYS_LT_28"),
+            (full_hour_days >= 28, "CONFIRMED_DAYS_LT_28"),
+            (exact_history, "HISTORY_TIME_UNKNOWN"),
         ],
         dict(minSamples=100, minActiveDays=14, minConfirmedUtcDays=28),
     )
@@ -146,9 +144,10 @@ def eligibility(
         "frequency",
         [
             (complete_hours >= 14, "REFERENCE_HOURS_LT_14"),
-            (full_days >= 14, "CONFIRMED_DAYS_LT_14"),
+            (full_hour_days >= 14, "CONFIRMED_DAYS_LT_14"),
+            (exact_history, "HISTORY_TIME_UNKNOWN"),
             (
-                covered_seconds(intervals, cutoff - timedelta(hours=1), cutoff) == 3600,
+                covered_seconds(hour_intervals, cutoff - timedelta(hours=1), cutoff) == 3600,
                 "CURRENT_HOUR_NOT_COVERED",
             ),
         ],
@@ -271,7 +270,9 @@ def _build_metrics(
         med = median(values) if values else None
         mad = median([abs(a - med) for a in values]) if med is not None else None
         q1, q3 = quartiles(values)
-        hourly = Counter(timestamp(row["occurredAt"]).hour for row in history)
+        timed = [row for row in history if row.get("timePrecision") != "DATE"]
+        unknown_time_count = len(history) - len(timed)
+        hourly = Counter(timestamp(row["occurredAt"]).hour for row in timed)
         weekdays = Counter(timestamp(row["occurredAt"]).weekday() for row in history)
         daily = Counter(
             timestamp(row["occurredAt"]).date().isoformat() for row in history
@@ -280,11 +281,21 @@ def _build_metrics(
         covered = covered_seconds(intervals, start, cutoff)
         full = covered == days * 86400
         calendar = calendar_activity(daily, intervals, start, cutoff)
-        reference = reference_hours(history, intervals, cutoff, days)
+        hour_coverage = coverage
+        if coverage and "hourIntervals" in coverage:
+            hour_coverage = {**coverage, "intervals": coverage["hourIntervals"]}
+        hour_intervals = confirmed_intervals(hour_coverage, start, cutoff)
+        hour_calendar = calendar if hour_intervals == intervals else calendar_activity(daily, hour_intervals, start, cutoff)
+        full_hour_days = sum(
+            b["coverageStatus"] == "COMPLETE" and Decimal(b["durationSeconds"]) == 86400
+            for b in hour_calendar
+        )
+        reference = reference_hours(timed, hour_intervals if not unknown_time_count else [], cutoff, days)
         cp = counterparties(history, values)
         deltas = [
             seconds(timestamp(b["occurredAt"]) - timestamp(a["occurredAt"]))
-            for a, b in zip(history, history[1:])
+            for a, b in zip(timed, timed[1:])
+            if not unknown_time_count
         ]
         dq1, dq3 = quartiles(deltas)
         rates = ratio(n, days) if full else None
@@ -294,7 +305,8 @@ def _build_metrics(
             history,
             days,
             intervals,
-            calendar,
+            hour_intervals,
+            full_hour_days,
             reference,
             cp,
             cutoff,
@@ -319,7 +331,7 @@ def _build_metrics(
             dailyCounts=dict(sorted(daily.items())),
             hourCountsUtc={str(h): hourly[h] for h in range(24)},
             weekdayCountsUtc={str(d): weekdays[d] for d in range(7)},
-            hourShareUtc={str(h): ratio(hourly[h], n) for h in range(24)},
+            hourShareUtc={str(h): ratio(hourly[h], len(timed)) for h in range(24)},
             weekdayShareUtc={str(d): ratio(weekdays[d], n) for d in range(7)},
             interarrivalMedianSeconds=decimal_wire(median(deltas)) if deltas else None,
             interarrivalQ25Seconds=decimal_wire(dq1),
@@ -351,6 +363,14 @@ def _build_metrics(
                 coveredSeconds=decimal_wire(covered),
                 coverageFraction=ratio(covered, days * 86400),
                 fullWindowCovered=full,
+                **({"gaps": coverage["gaps"]} if coverage and "gaps" in coverage else {}),
+                **({"unknownTimeCount": unknown_time_count} if unknown_time_count else {}),
+                **({
+                    "hourConfirmedDays": full_hour_days,
+                    "hourConfirmedIntervals": [
+                        {"from": a.isoformat(), "to": b.isoformat()} for a, b in hour_intervals
+                    ],
+                } if coverage and "hourIntervals" in coverage else {}),
                 knownHistoryStart=known_start.isoformat() if known_start else None,
                 knownHistoryEnd=known_end.isoformat() if known_end else None,
                 knownSpanSeconds=decimal_wire(seconds(known_end - known_start))

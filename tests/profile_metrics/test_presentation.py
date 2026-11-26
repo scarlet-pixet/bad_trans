@@ -45,6 +45,8 @@ def test_age_is_response_metadata_and_does_not_change_immutable_metrics(monkeypa
         version=1,
         origin="SCHEDULED",
         created_at=NOW,
+        as_of=NOW,
+        window_days=30,
         metrics=metrics,
     )
     result = ProfileService.profile_wire(row, served_at=NOW + timedelta(seconds=600))

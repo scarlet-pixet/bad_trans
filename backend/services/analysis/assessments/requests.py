@@ -7,6 +7,7 @@ from backend.common.behavior_contract import digest
 from backend.common.data import DomainError, uuid
 from backend.common.commands import owned_connection
 from backend.services.analysis.assessments.calculation import POLICY, validate_rules
+from backend.services.analysis.assessments.comparison import COMPARISON_POLICY
 from backend.services.analysis.profiles.observation import timestamp
 from backend.services.analysis.profiles.storage import (
     prepare_snapshot,
@@ -19,7 +20,7 @@ def connection(c) -> psycopg.Connection[dict]:
     return owned_connection(c)
 
 
-def freeze(c, client, event, rule_ids, request_key,knowledge_mode='FIRST_REQUEST_KNOWLEDGE') -> dict:
+def freeze(c, client, event, rule_ids, request_key, knowledge_mode='FIRST_REQUEST_KNOWLEDGE', *, frozen_context=None) -> dict:
     identifier = uuid(event["payload"]["transaction_id"])
     if not isinstance(request_key, str) or not 1 <= len(request_key) <= 128:
         raise DomainError("BAD_INPUT", "Invalid assessment request key")
@@ -31,7 +32,10 @@ def freeze(c, client, event, rule_ids, request_key,knowledge_mode='FIRST_REQUEST
     ):
         raise DomainError("BAD_INPUT", "Нужен непустой набор разных современных версий")
     ids = sorted(uuid(x) for x in rule_ids) if rule_ids is not None else None
-    intent = digest(dict(transactionId=identifier, ruleVersionIds=ids))
+    intent_parameters = dict(transactionId=identifier, ruleVersionIds=ids)
+    if frozen_context is not None:
+        intent_parameters['runContext'] = digest(frozen_context)
+    intent = digest(intent_parameters)
     with connection(c) as gate:
         gate.execute(
             "SELECT pg_advisory_xact_lock(hashtextextended(%s,0))",
@@ -44,7 +48,9 @@ def freeze(c, client, event, rule_ids, request_key,knowledge_mode='FIRST_REQUEST
             if row["intent_hash"] != intent:
                 raise DomainError("CONFLICT", "Assessment key has another intent")
             return row
-        if ids is None:
+        if frozen_context is not None:
+            rules = frozen_context['rules']
+        elif ids is None:
             rules = gate.execute(
                 "SELECT DISTINCT ON(v.rule_id) v.*,r.code FROM rule_versions v JOIN analysis_rules r ON r.id=v.rule_id WHERE v.status='PUBLISHED' AND r.code NOT IN ('AMOUNT','FREQUENCY','NEW_COUNTERPARTY') ORDER BY v.rule_id,v.version DESC"
             ).fetchall()
@@ -69,7 +75,14 @@ def freeze(c, client, event, rule_ids, request_key,knowledge_mode='FIRST_REQUEST
             ingestedBefore=timestamp(event["occurred_at"]).isoformat(),
         )
         from backend.services.analysis.feedback.events import capture
-        context['feedbackReference']=capture(gate,knowledge_mode)
+        if frozen_context is not None:
+            context['policy'] = frozen_context['policy']
+            context['feedbackReference'] = frozen_context['feedbackReference']
+            if frozen_context.get("comparisonPolicy"):
+                context["comparisonPolicy"] = frozen_context["comparisonPolicy"]
+        else:
+            context['feedbackReference'] = capture(gate, knowledge_mode)
+            context["comparisonPolicy"] = COMPARISON_POLICY
         saved = gate.execute(
             "INSERT INTO assessment_requests(request_key,intent_hash,context) VALUES (%s,%s,%s) RETURNING *",
             (request_key, intent, Jsonb(context)),

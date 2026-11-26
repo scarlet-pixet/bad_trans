@@ -21,6 +21,7 @@ from backend.infrastructure.clients import EventTransactionClient
 from backend.services.case.notifications import notification_job, recipients
 from backend.infrastructure.resilience import log, trace_id
 SERVICE=os.environ['SERVICE_NAME']
+manual_failure_reviews=True
 ROOT=Path(__file__).resolve().parents[2]
 
 def connect():
@@ -107,7 +108,7 @@ def notifications_loop():
                     token=trace_id.set(str(job['correlation_id']) if job.get('correlation_id') else str(job['id']))
                     targets={u['id'] for u in users if u['role']=='MANAGER' or u['id']==str(job['assignee_id'])}
                     for user in targets:
-                        c.execute('INSERT INTO notifications VALUES (%s,%s,%s,%s,%s,NULL,now()) ON CONFLICT (recipient_id,source_event_id,type) DO NOTHING',
+                        c.execute('INSERT INTO notifications(id,case_id,recipient_id,type,source_event_id,read_at,created_at) VALUES (%s,%s,%s,%s,%s,NULL,now()) ON CONFLICT (recipient_id,source_event_id,type) DO NOTHING',
                                   (str(__import__('uuid').uuid4()),job['case_id'],user,job['type'],job['id']))
                     c.execute('UPDATE notification_jobs SET published_at=now() WHERE id=%s',(job['id'],))
                     log('notification.delivered',caseId=str(job['case_id']),type=job['type'],recipientCount=len(targets))

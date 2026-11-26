@@ -22,6 +22,8 @@ def log(event, **fields):
                              'correlationId': current_trace(), **fields}, ensure_ascii=False, default=str))
 
 Details = namedtuple('Details', 'method timeout metadata credentials wait_for_ready compression')
+HISTORY_PREPARE_TIMEOUT = 30
+HISTORY_CALCULATION_TIMEOUT = 60
 
 def export_timeout():
     try:
@@ -58,6 +60,10 @@ class Retry(grpc.UnaryUnaryClientInterceptor):
         if operation == 'Invoke' and request.method == 'export_snapshot_report':
             deadline = export_timeout()
             count = 1
+        if operation == 'Invoke' and request.method == 'prepare_behavior_history':
+            deadline = HISTORY_PREPARE_TIMEOUT
+        if operation in ('StartProfile', 'StartAnalysis'):
+            deadline = HISTORY_CALCULATION_TIMEOUT
         deadline = min(deadline, details.timeout or deadline)
         metadata = list(details.metadata or [])
         if not any(k == 'x-correlation-id' for k,v in metadata):
@@ -76,7 +82,8 @@ class Retry(grpc.UnaryUnaryClientInterceptor):
             time.sleep(0.1 * 2**(attempt-1))
 
 def channel_for(address, owner):
-    return grpc.intercept_channel(grpc.insecure_channel(address), Retry(owner))
+    from backend.infrastructure.tls import grpc_channel
+    return grpc.intercept_channel(grpc_channel(address), Retry(owner))
 
 class ServerLogging(grpc.ServerInterceptor):
     def __init__(self):

@@ -1,3 +1,5 @@
+import os
+
 import streamlit as st
 
 
@@ -7,6 +9,34 @@ def state(value):
     )
 
 
+def render_kafka_lag(value):
+    st.write("Связь с брокером Kafka: " + state(value["brokerReachable"]))
+    st.subheader("Отставание потребителей Kafka")
+    if value["measuredAt"]:
+        st.caption(f"Измерено UTC {value['measuredAt']} · актуально до {value['maxAgeSeconds']} с")
+    if value["status"] == "STALE":
+        st.warning("Измерение устарело. Текущее отставание неизвестно.")
+        return
+    if value["status"] == "NO_DATA":
+        st.info("Нет данных об отставании.")
+        return
+    for group in value["groups"]:
+        total = group["lag"]
+        st.write(f"**{group['group']}** · {f'Отставание {total}' if total is not None else 'Нет данных о сумме'}")
+        with st.expander(f"Партиции · {group['group']}"):
+            st.caption(f"Измерено {group['knownPartitions']} из {group['totalPartitions']} известных партиций.")
+            if group["missingTopics"]:
+                st.warning("Нет метаданных топиков: " + ", ".join(group["missingTopics"]))
+            if group["partitions"]:
+                st.dataframe([
+                    {"Топик": p["topic"], "Партиция": p["partition"],
+                     "Конец журнала": str(p["logEndOffset"]) if p["logEndOffset"] is not None else "Нет данных",
+                     "Зафиксированное смещение": str(p["committedOffset"]) if p["committedOffset"] is not None else "Нет данных",
+                     "Отставание": str(p["lag"]) if p["lag"] is not None else "Нет данных"}
+                    for p in group["partitions"]
+                ], hide_index=True)
+
+
 def render_health(health):
     if health.get("allReady") and not health.get("degraded"):
         st.success("Система готова")
@@ -14,7 +44,7 @@ def render_health(health):
         st.warning("Система работает с ограничениями")
     st.caption("Измерено UTC: " + str(health.get("measuredAt", "Неизвестно")))
     st.write("Синхронные операции: " + state(health.get("synchronousReady")))
-    st.write("Событийный поток: " + state(health.get("asynchronousReady")))
+    st.write("Готовность событийных сервисов: " + state(health.get("asynchronousReady")))
     auth = health.get("auth", {})
     cache = health.get("cache", {})
     rows = [
@@ -75,8 +105,6 @@ def render_health(health):
                 )
                 st.write("Задания пересчёта:", a.get("refreshJobs", "Неизвестно"))
             st.caption("Срез владельца UTC: " + str(a.get("measuredAt", "Неизвестно")))
-    st.caption(
-        "Вспомогательные инструменты — ссылки, их работоспособность здесь не проверяется."
-    )
-    st.link_button("pgAdmin", "http://127.0.0.1:18180")
-    st.link_button("Kafka UI", "http://127.0.0.1:18190")
+    if os.getenv("NETWORK_MODE") != "TLS":
+        st.link_button("pgAdmin", "http://127.0.0.1:18180")
+        st.link_button("Kafka UI", "http://127.0.0.1:18190")

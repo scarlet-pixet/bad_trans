@@ -61,6 +61,8 @@ def render_profiles(profiles):
             )
             if p.get("exclusions"):
                 with st.expander("Исключённые из базы операции"):
+                    if p.get("omittedHistoryDetails", {}).get("exclusions"):
+                        st.caption(f"Показано {len(p['exclusions'])} из {p['excludedCount']} исключений.")
                     st.dataframe(
                         [
                             {
@@ -101,6 +103,7 @@ def render_profiles(profiles):
                     "CONFIRMED_DAYS_LT_28": "нет 28 подтверждённых суток наблюдения",
                     "CONFIRMED_DAYS_LT_14": "нет 14 подтверждённых суток наблюдения",
                     "REFERENCE_HOURS_LT_14": "нет 14 сопоставимых наблюдавшихся часов",
+                    "HISTORY_TIME_UNKNOWN": "в истории есть операции без точного времени",
                     "CURRENT_HOUR_NOT_COVERED": "охват контрольного часа не подтверждён",
                     "KNOWN_COUNTERPARTY_FRACTION_LT_90_PERCENT": "известны контрагенты менее чем у 90% операций",
                     "WINDOW_SHORTER_THAN_30_DAYS": "для динамики нужно окно не короче 30 дней",
@@ -152,8 +155,20 @@ def render_profiles(profiles):
         )
         if p.get("freshness"):
             st.caption(f"Возраст среза: {p['freshness']['ageSeconds'] / 60:.1f} мин.")
+        observation = p.get("observation", {})
+        gaps = observation.get("gaps")
+        if gaps and gaps["day"]:
+            st.warning("Покрытие клиента неполное.")
+            st.caption(
+                f"Счетов без декларации: {gaps['accountsWithoutScope']} · "
+                f"пробелы по дневному признаку: {gaps['day']} · по часовому: {gaps['hour']}"
+            )
+        elif gaps and gaps["hour"]:
+            st.info("Дневное покрытие подтверждено. Часовое покрытие неполное.")
         with st.expander("Часы активности · UTC"):
-            if p["hourCountsUtc"]:
+            if observation.get("unknownTimeCount"):
+                st.caption(f"Операций без времени: {observation['unknownTimeCount']}. Диаграмма учитывает только операции с временем.")
+            if p["hourCountsUtc"] and sum(p["hourCountsUtc"].values()):
                 st.bar_chart(
                     [
                         {"Час": int(hour), "Операций": count}

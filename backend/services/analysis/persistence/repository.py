@@ -1,10 +1,14 @@
+from typing import cast
+
 from backend.common.data import Repository, model
 from backend.services.analysis.persistence.models import Profile, Result, Run, RuleVersion, RuleHit
+from backend.services.analysis.profiles.public_metrics import public_metrics
 
 class AnalysisRepository(Repository):
 
     def profile(self, id):
-        return model(Profile, self.db.one('SELECT * FROM behavior_profiles WHERE id=%s', (id,)))
+        row = cast("dict | None", self.db.one('SELECT * FROM behavior_profiles WHERE id=%s', (id,)))
+        return model(Profile, {**row, "metrics": public_metrics(row["metrics"])} if row else None)
 
     def run(self, id):
         return model(Run, self.db.one('SELECT * FROM analysis_runs WHERE id=%s', (id,)))

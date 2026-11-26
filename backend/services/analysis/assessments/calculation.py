@@ -33,8 +33,9 @@ def default_rules():
     ]
 
 
-def validate_rules(rules):
-    if not isinstance(rules, list) or not 1 <= len(rules) <= len(ORDER):
+def validate_rules(rules, *, policy=POLICY):
+    order = tuple(policy["order"])
+    if not isinstance(rules, list) or not 1 <= len(rules) <= len(order):
         raise DomainError("BAD_INPUT", "Нужен непустой набор современных версий правил")
     codes, ids = set(), set()
     normalized = []
@@ -45,15 +46,15 @@ def validate_rules(rules):
         cfg = r.get("parameters")
         weight = r.get("weight")
         identifier = uuid(r.get("id"))
-        if code not in ORDER or code in codes or not identifier or identifier in ids:
+        if code not in order or code in codes or not identifier or identifier in ids:
             raise DomainError(
                 "BAD_INPUT", "Неизвестный/legacy код или повтор версии правила"
             )
-        expected = POLICY["rules"][code]["parameters"]
+        expected = policy["rules"][code]["parameters"]
         if (
             not isinstance(cfg, dict)
             or set(cfg) != set(expected)
-            or cfg.get("policyVersion") != POLICY["version"]
+            or cfg.get("policyVersion") != policy["version"]
             or type(cfg.get("enabled")) is not bool
         ):
             raise DomainError(
@@ -89,15 +90,15 @@ def validate_rules(rules):
                 raise DomainError(
                     "BAD_INPUT", "Параметры должны быть конечными и допустимыми"
                 ) from None
-        group = POLICY["rules"][code]["group"]
-        if type(weight) is not int or not 0 <= weight <= POLICY["budgets"][group]:
+        group = policy["rules"][code]["group"]
+        if type(weight) is not int or not 0 <= weight <= policy["budgets"][group]:
             raise DomainError("BAD_INPUT", "Вес выходит за бюджет семейства")
         codes.add(code)
         ids.add(identifier)
         normalized.append(
             dict(id=identifier, code=code, weight=weight, parameters=deepcopy(cfg))
         )
-    return sorted(normalized, key=lambda r: ORDER.index(r["code"]))
+    return sorted(normalized, key=lambda r: order.index(r["code"]))
 
 
 def fixed(v):
@@ -148,6 +149,11 @@ def run_check(code, tx, p, history, cfg):
             reasons.append("INSUFFICIENT_SAMPLE")
         if active < cfg["min_active_days"]:
             reasons.append("INSUFFICIENT_ACTIVE_DAYS")
+    if code in ("UNUSUAL_TIME", "PROFILE_FREQUENCY"):
+        if tx.get("timePrecision") == "DATE":
+            return insufficient("SUBJECT_TIME_UNKNOWN")
+        if p["observation"].get("unknownTimeCount", 0):
+            return insufficient("HISTORY_TIME_UNKNOWN")
     if code == "AMOUNT_DEVIATION":
         value = Decimal(str(tx["amount"]))
         observed = dict(amount=fixed(value), currency=tx["currency"])
@@ -196,11 +202,11 @@ def run_check(code, tx, p, history, cfg):
         ]
         intervals = [
             (timestamp(i["from"]), timestamp(i["to"]))
-            for i in p["observation"]["confirmedIntervals"]
+            for i in p["observation"].get("hourConfirmedIntervals", p["observation"]["confirmedIntervals"])
         ]
         if len(bins) < cfg["min_reference_hours"]:
             reasons.append("INSUFFICIENT_REFERENCE_HOURS")
-        if complete_days < cfg["min_confirmed_days"]:
+        if p["observation"].get("hourConfirmedDays", complete_days) < cfg["min_confirmed_days"]:
             reasons.append("INSUFFICIENT_CONFIRMED_DAYS")
         if covered_seconds(intervals, cutoff - timedelta(hours=1), cutoff) != 3600:
             reasons.append("CURRENT_HOUR_NOT_COVERED")
@@ -216,7 +222,7 @@ def run_check(code, tx, p, history, cfg):
         cutoff = timestamp(tx["occurredAt"])
         hour, day = cutoff.hour, cutoff.weekday()
         observed = dict(hourUtc=hour, weekdayUtc=day)
-        if complete_days < cfg["min_confirmed_days"]:
+        if p["observation"].get("hourConfirmedDays", complete_days) < cfg["min_confirmed_days"]:
             reasons.append("INSUFFICIENT_CONFIRMED_DAYS")
         if reasons:
             return insufficient(*reasons)
@@ -290,23 +296,27 @@ def run_check(code, tx, p, history, cfg):
     return "TRIGGERED" if triggered else "NOT_TRIGGERED", observed, base, deviation, []
 
 
-def assess(tx, p, history, rules):
-    rules = validate_rules(rules)
+def assess(tx, p, history, rules, *, policy=POLICY, amount_profile=None, amount_basis_id=None):
+    rules = validate_rules(rules, policy=policy)
     with localcontext() as context:
         context.prec = 50
         context.rounding = ROUND_HALF_EVEN
         checks = []
         for rule in rules:
             code = rule["code"]
+            is_amount = code == "AMOUNT_DEVIATION"
+            selected = {**p, **amount_profile} if is_amount and amount_profile is not None else p
             status, observed, baseline, deviation, reasons = run_check(
-                code, tx, p, history, rule["parameters"]
+                code, tx, selected, history, rule["parameters"]
             )
+            if is_amount and amount_basis_id is not None:
+                baseline["comparisonBasisId"] = amount_basis_id
             candidate = rule["weight"] if status == "TRIGGERED" else 0
             checks.append(
                 dict(
                     code=code,
                     ruleVersionId=rule["id"],
-                    policyVersion=POLICY["version"],
+                    policyVersion=policy["version"],
                     status=status,
                     observed=observed,
                     baseline=baseline,
@@ -322,7 +332,7 @@ def assess(tx, p, history, rules):
         for check in checks:
             if check["status"] != "TRIGGERED":
                 continue
-            group = POLICY["rules"][check["code"]]["group"]
+            group = policy["rules"][check["code"]]["group"]
             winner = winners.get(group)
             if (
                 winner is None
@@ -331,7 +341,7 @@ def assess(tx, p, history, rules):
                 winners[group] = check
         for check in checks:
             if check["status"] == "TRIGGERED":
-                winner = winners[POLICY["rules"][check["code"]]["group"]]
+                winner = winners[policy["rules"][check["code"]]["group"]]
                 if winner is check:
                     check["contribution"] = check["candidateContribution"]
                 else:
@@ -343,14 +353,14 @@ def assess(tx, p, history, rules):
         assert score is None or 0 <= score <= 100
         return dict(
             assessmentSchemaVersion=1,
-            assessmentAlgorithmVersion=POLICY["algorithmVersion"],
-            assessmentPolicyVersion=POLICY["version"],
-            assessmentPolicyHash=digest(dict(policy=POLICY, rules=rules)),
-            assessmentPolicy=deepcopy(POLICY),
+            assessmentAlgorithmVersion=policy["algorithmVersion"],
+            assessmentPolicyVersion=policy["version"],
+            assessmentPolicyHash=digest(dict(policy=policy, rules=rules)),
+            assessmentPolicy=deepcopy(policy),
             assessmentScore=score,
             assessmentStatus=status,
-            reviewRequired=score >= POLICY["threshold"] if score is not None else None,
-            threshold=POLICY["threshold"],
+            reviewRequired=score >= policy["threshold"] if score is not None else None,
+            threshold=policy["threshold"],
             checks=checks,
             rules=rules,
         )

@@ -9,6 +9,7 @@ from datetime import UTC, datetime
 from backend.common.commands import require_role
 from backend.common.data import DomainError, uuid
 from backend.services.analysis.profiles.metrics import WINDOWS, timestamp
+from backend.services.analysis.profiles.public_metrics import public_metrics
 
 
 
@@ -16,9 +17,29 @@ from backend.services.analysis.profiles.metrics import WINDOWS, timestamp
 from backend.services.analysis.assessments.queries import AssessmentQueries
 
 class ProfileService(AssessmentQueries):
+    def compare_profile_runs(self, actor, firstId, secondId, offset=0, limit=20):
+        from backend.services.analysis.profiles.run_comparison import compare_profile_runs
+        return compare_profile_runs(self.db, actor, firstId, secondId, offset, limit)
+
+    def start_profile_run(self, actor, selection, idempotencyKey):
+        from backend.services.analysis.profiles.bulk import ProfileRuns
+        return ProfileRuns(self.db, self.client).start(actor, selection, idempotencyKey)
+
+    def get_profile_run(self, actor, id, offset=0, limit=50):
+        from backend.services.analysis.profiles.bulk import ProfileRuns
+        return ProfileRuns(self.db, self.client).get(actor, id, offset, limit)
+
+    def list_profile_runs(self, actor, limit=20, offset=0):
+        from backend.services.analysis.profiles.bulk import ProfileRuns
+        return ProfileRuns(self.db, self.client).list(actor, limit, offset)
+
     def compare_profile_versions(self, actor, firstId, secondId):
         from backend.services.analysis.profiles.workspace import WorkspaceService
         return WorkspaceService(self.db).compare_profile_versions(actor, firstId, secondId)
+
+    def get_operation_processing(self, actor, transactionId, eventId=None):
+        from backend.services.analysis.assessments.processing import get_processing
+        return get_processing(self.db, actor, transactionId, eventId)
 
     def get_profile_version(self,actor,id):
         from backend.services.analysis.profiles.workspace import WorkspaceService
@@ -64,21 +85,23 @@ class ProfileService(AssessmentQueries):
     @staticmethod
     def profile_wire(row, served_at=None):
         served = timestamp(served_at or datetime.now(UTC))
-        as_of = timestamp(row["metrics"].get("asOf", row.get("as_of", row["created_at"])))
+        as_of = timestamp(row["as_of"])
         elapsed = (served-as_of).total_seconds()
         threshold = max(1, int(os.getenv("PROFILE_REFRESH_SECONDS", "300")))
         freshness = dict(servedAt=served.isoformat(),ageSeconds=max(0,elapsed),
                          clockSkewSeconds=max(0,-elapsed),thresholdSeconds=threshold,
                          status="FUTURE_CUTOFF" if elapsed<0 else "STALE" if elapsed>threshold else "FRESH")
         return {
+            **public_metrics(row["metrics"]),
             "id": str(row["id"]),
             "clientId": str(row["client_id"]),
             "currency": row["currency"],
             "direction": row["direction"],
             "version": row["version"],
             "origin": row["origin"],
+            "asOf": as_of.isoformat(),
+            "windowDays": row["window_days"],
             "createdAt": row["created_at"].isoformat(),
-            **row["metrics"],
             "freshness": freshness,
         }
 
@@ -96,7 +119,7 @@ class ProfileService(AssessmentQueries):
             logging.warning("profiles.discovery.retry %s", type(exc).__name__)
         batch = max(1,min(100,int(os.getenv("PROFILE_REFRESH_BATCH", "2"))))
         worker.enqueue(refresh_seconds=max(1,int(os.getenv("PROFILE_REFRESH_SECONDS","300"))),batch=batch)
-        worker.drain(batch=batch,budget_seconds=max(1,min(300,float(os.getenv("PROFILE_REFRESH_BUDGET_SECONDS","20")))))
+        worker.drain(batch=batch,budget_seconds=max(1,min(300,float(os.getenv("PROFILE_REFRESH_BUDGET_SECONDS","45")))))
         worker.cleanup_pages()
 
     def loop(self):

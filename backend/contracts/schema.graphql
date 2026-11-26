@@ -106,6 +106,7 @@ type CasePage {
   items: [ReviewCase!]!
   nextCursor: String
   totalCount: Int!
+  currentCursor: String
 }
 
 enum CaseStatus {
@@ -151,6 +152,7 @@ type ClientPage {
   items: [Client!]!
   nextCursor: String
   totalCount: Int!
+  currentCursor: String
 }
 
 type Counterparty {
@@ -215,6 +217,12 @@ The `JSON` scalar type represents JSON values as specified by [ECMA-404](https:/
 """
 scalar JSON @specifiedBy(url: "https://ecma-international.org/wp-content/uploads/ECMA-404_2nd_edition_december_2017.pdf")
 
+enum LocationKind {
+  POINT_OF_SALE
+  ATM_DEVICE
+  MERCHANT_REGISTRATION
+}
+
 type Mutation {
   createClient(input: ClientInput!): Client!
   openAccount(input: AccountInput!): Account!
@@ -232,6 +240,13 @@ type Mutation {
   blockStaff(userId: ID!, idempotencyKey: String!): User!
   unblockStaff(userId: ID!, idempotencyKey: String!): User!
   changeStaffRole(userId: ID!, roleCode: RoleCode!, idempotencyKey: String!): User!
+  declareSourceCoverage(input: SourceCoverageInput!): JSON!
+  recordOperationEvent(input: OperationEventInput!): JSON!
+  registerTransfer(input: RegisterTransferInput!): Transaction!
+  changeFailureReview(owner: String!, id: ID!, action: String!, idempotencyKey: String!, reason: String = null): JSON!
+  startPeriodReassessment(input: ReanalysisInput!): JSON!
+  startBulkImport(fileBase64: String!, fileHash: String!, idempotencyKey: String!): JSON!
+  startProfileRun(selection: JSON!, idempotencyKey: String!): JSON!
   createSnapshotReport(input: JSON!): JSON!
   startSource(idempotencyKey: String!, intervalSeconds: Float! = 1): JSON!
   setSourceState(runId: ID!, paused: Boolean!): JSON!
@@ -256,6 +271,54 @@ type NotificationPage {
   items: [Notification!]!
   nextCursor: String
   totalCount: Int!
+  currentCursor: String
+}
+
+input OperationEventInput {
+  source: String!
+  operationRef: String!
+  eventRef: String!
+  kind: String!
+  channel: String!
+  status: String!
+  accountId: ID!
+  currency: String!
+  direction: String!
+  amount: Decimal!
+  occurredAt: DateTime!
+  counterpartyId: ID = null
+  originalTransactionId: ID = null
+  transfer: OperationTransferInput = null
+  timePrecision: String = null
+  location: OperationLocationInput = null
+}
+
+input OperationLocationInput {
+  kind: LocationKind!
+  countryCode: String!
+  city: String = null
+  placeRef: String = null
+}
+
+type OperationProcessing {
+  state: OperationProcessingState!
+  resultId: ID
+}
+
+enum OperationProcessingState {
+  PENDING
+  SCORED
+  PARTIAL
+  UNAVAILABLE
+  FAILED
+  UNKNOWN
+}
+
+input OperationTransferInput {
+  transferNamespace: String!
+  transferRef: String!
+  debit: TransferPartyInput!
+  credit: TransferPartyInput!
 }
 
 input PageInput {
@@ -285,7 +348,6 @@ input ProfileInput {
 }
 
 type Query {
-  compareProfileVersions(firstId: ID!, secondId: ID!): JSON!
   me: User!
   clients(filter: ClientFilter = null, page: PageInput = null): ClientPage!
   transactions(filter: TransactionFilter = null, page: PageInput = null): TransactionPage!
@@ -302,10 +364,29 @@ type Query {
   exportReport(id: ID!): ReportExport!
   notifications(unreadOnly: Boolean = null, page: PageInput = null): NotificationPage!
   transactionSummary(filter: TransactionFilter = null): TransactionSummaryResult!
+  failureReviews(owner: String!, state: String! = "ACTIVE", offset: Int! = 0): JSON!
+  failureReview(owner: String!, id: ID!): JSON!
+  bulkImport(id: ID!): JSON!
+  bulkImports(offset: Int! = 0): JSON!
+  bulkImportErrors(id: ID!): String!
+  kafkaLag: JSON!
+  clientLabels(ids: [ID!]!): JSON!
+  notificationById(id: ID!): JSON
+  ruleCatalog: JSON!
+  periodRunResults(runId: ID!, offset: Int! = 0, limit: Int! = 100): JSON
+  comparePeriodRuns(firstId: ID!, secondId: ID!, offset: Int! = 0, limit: Int! = 50): JSON!
+  compareProfileRuns(firstId: ID!, secondId: ID!, offset: Int! = 0, limit: Int! = 20): JSON!
+  profileRun(id: ID!, offset: Int! = 0, limit: Int! = 50): JSON!
+  profileRuns(limit: Int! = 20, offset: Int! = 0): JSON!
   exportSnapshotReport(id: ID!, format: String!, table: String = null): JSON!
   snapshotReport(id: ID!): JSON!
   snapshotReports(limit: Int! = 20, offset: Int! = 0): JSON!
   profileVersion(id: ID!): JSON!
+  compareProfileVersions(firstId: ID!, secondId: ID!): JSON!
+  operationLifecycle(transactionId: ID!): JSON
+  clientSpending(clientId: ID!, currencyCode: String!, period: PeriodInput!): JSON!
+  operationTransfer(transactionId: ID!): JSON
+  operationProcessing(transactionId: ID!): OperationProcessing!
   resultHistory(transactionId: ID!, limit: Int! = 20, pageToken: String = null): JSON!
   feedbackStatus: JSON!
   behaviorProfilePage(clientId: ID = null, windowDays: Int! = 30, history: Boolean! = false, currency: String = null, direction: String = null, origin: String = null, limit: Int! = 50, pageToken: String = null): JSON!
@@ -314,7 +395,7 @@ type Query {
   staffUsers: JSON!
   behaviorProfiles(clientId: ID = null, windowDays: Int! = 30, history: Boolean! = false): JSON!
   detections(clientId: ID = null): JSON!
-  detectionContext(transactionId: ID!, resultId: ID = null): JSON!
+  detectionContext(transactionId: ID!, resultId: ID = null): JSON
   sources: JSON!
   qualityReport(runId: ID!): JSON!
   caseContext(caseId: ID!): JSON!
@@ -326,6 +407,14 @@ input ReanalysisInput {
   clientId: ID = null
   ruleVersionIds: [ID!]!
   idempotencyKey: String!
+}
+
+input RegisterTransferInput {
+  transaction: TransactionInput!
+  transferNamespace: String!
+  transferRef: String!
+  debit: TransferPartyInput!
+  credit: TransferPartyInput!
 }
 
 type Report {
@@ -406,6 +495,16 @@ type RunComparison {
   newHits: JSON!
 }
 
+input SourceCoverageInput {
+  accountId: ID!
+  source: String!
+  channel: String!
+  direction: String!
+  feature: String!
+  revision: String!
+  intervals: [PeriodInput!]!
+}
+
 input StaffInput {
   login: String!
   password: String!
@@ -425,6 +524,7 @@ type Transaction {
   direction: Direction!
   occurredAt: DateTime!
   ingestedAt: DateTime!
+  timePrecision: String
 }
 
 input TransactionFilter {
@@ -446,12 +546,14 @@ input TransactionInput {
   direction: Direction!
   occurredAt: DateTime!
   idempotencyKey: String!
+  timePrecision: String = null
 }
 
 type TransactionPage {
   items: [Transaction!]!
   nextCursor: String
   totalCount: Int!
+  currentCursor: String
 }
 
 type TransactionSummaryResult {
@@ -462,6 +564,12 @@ type TransactionSummaryResult {
   maximumAmount: Decimal
   incomingCount: Int!
   outgoingCount: Int!
+}
+
+input TransferPartyInput {
+  accountId: ID = null
+  externalAccountId: String = null
+  externalNamespace: String = null
 }
 
 type User {

@@ -22,11 +22,12 @@ from backend.gateway.auth_client import AuthAPIClient
 from backend.common.principal import PrincipalClient
 from backend.infrastructure.cache import CachedClient
 from backend.infrastructure.clients import RemoteClient
+from backend.infrastructure.kafka_lag import LagMonitor
 from backend.infrastructure.resilience import configure_logging, log, trace_id
 configure_logging()
 MUTATION_ROLES['MANAGER'] |= {'importTransactions', 'buildProfile', 'analyzeTransaction', 'publishRuleVersion', 'reanalyzePeriod', 'distributeCases', 'createReport'}
 MUTATION_ROLES['ANALYST'] |= {'importTransactions', 'buildProfile', 'analyzeTransaction', 'createReport'}
-MUTATION_ROLES['ANALYST'] -= {'importTransactions','buildProfile','registerTransaction'}
+MUTATION_ROLES['ANALYST'] -= {'buildProfile','registerTransaction'}
 
 @strawberry.type
 class Mutation(SecuredMutation):
@@ -86,7 +87,12 @@ class ReliableAuth(AuthAPIClient):
 async def lifespan(app):
     app.state.container = Container()
     app.state.auth_api = ReliableAuth(os.environ['AUTH_URL'])
-    yield
+    app.state.kafka_lag = LagMonitor(os.getenv("KAFKA_BOOTSTRAP"))
+    app.state.kafka_lag.start()
+    try:
+        yield
+    finally:
+        app.state.kafka_lag.close()
 app = FastAPI(title='Bad Trans — анализ банковских транзакций', lifespan=lifespan)
 
 @app.middleware('http')

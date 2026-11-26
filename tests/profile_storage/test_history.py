@@ -5,6 +5,7 @@ from uuid import uuid4
 import psycopg
 import pytest
 
+from backend.common.behavior_contract import MAX_HISTORY_ITEMS, digest
 from backend.common.data import DomainError
 from backend.infrastructure.product_migrations import migrate
 from backend.services.transaction.history.snapshots import HistorySnapshots
@@ -123,6 +124,9 @@ def test_immutable_inputs_and_incomplete_snapshot_are_rejected(history):
         "DELETE FROM behavior_history_snapshots WHERE id=%s",
         "DELETE FROM behavior_history_snapshot_items WHERE snapshot_id=%s",
         "UPDATE behavior_history_snapshots SET digest=repeat('0',64) WHERE id=%s",
+        """INSERT INTO behavior_history_snapshot_items
+           SELECT snapshot_id,ordinal+1,gen_random_uuid(),facts
+           FROM behavior_history_snapshot_items WHERE snapshot_id=%s""",
     ]:
         with pytest.raises(psycopg.errors.CheckViolation):
             with db.connect() as c:
@@ -157,7 +161,7 @@ def test_prepare_rejects_invalid_context(history, change):
     assert e.value.code == "BAD_INPUT"
 
 
-def test_missing_objects_and_history_limit_do_not_publish_partial_snapshots(history):
+def test_large_history_is_ordered_immutable_and_rejects_overflow(history):
     db, service, p, add = history
     with pytest.raises(DomainError) as e:
         service.page({"snapshotId": str(uuid4())})
@@ -166,16 +170,40 @@ def test_missing_objects_and_history_limit_do_not_publish_partial_snapshots(hist
         service.prepare(dict(p, clientId=str(uuid4())))
     assert e.value.code == "NOT_FOUND"
     identifier = add()
-    with db.connect() as c:
-        c.execute(
+    def populate(first, last):
+        with db.connect() as c:
+            c.execute("SET LOCAL statement_timeout = '30s'")
+            c.execute(
             """INSERT INTO transactions(id,source,external_id,account_id,amount,currency,direction,occurred_at,ingested_at)
             SELECT md5(g::text)::uuid,'limit-audit',g::text,account_id,amount,currency,direction,occurred_at,ingested_at
-            FROM transactions CROSS JOIN generate_series(1,10000) g WHERE id=%s""",
-            (identifier,),
-        )
+                FROM transactions CROSS JOIN generate_series(%s::integer,%s::integer) g WHERE id=%s""",
+                (first, last, identifier),
+            )
+    populate(1, 9999)
+    snapshot = service.prepare(p)
+    assert snapshot["itemCount"] == 10000
+    add()
+    above_old_limit = service.prepare(dict(p, requestKey="larger-than-legacy"))
+    assert above_old_limit["itemCount"] == 10001
+    token, facts = None, []
+    while True:
+        page = service.page({"snapshotId": above_old_limit["snapshotId"], "pageToken": token, "limit": 500})
+        facts.extend(page["items"])
+        token = page["nextPageToken"]
+        if token is None:
+            break
+    assert len({fact["id"] for fact in facts}) == 10001
+    assert [fact["id"] for fact in facts] == sorted(fact["id"] for fact in facts)
+    assert digest(facts) == above_old_limit["digest"]
+    populate(10000, MAX_HISTORY_ITEMS - 2)
+    at_limit = service.prepare(dict(p, requestKey="at-history-limit"))
+    assert at_limit["itemCount"] == MAX_HISTORY_ITEMS
+    add()
     with pytest.raises(DomainError, match="HISTORY_LIMIT"):
-        service.prepare(p)
-    assert db.one("SELECT count(*) AS n FROM behavior_history_snapshots")["n"] == 0
+        service.prepare(dict(p, requestKey="over-history-limit"))
+    assert service.prepare(p) == snapshot
+    assert service.prepare(dict(p, requestKey="larger-than-legacy")) == above_old_limit
+    assert db.one("SELECT count(*) AS n FROM behavior_history_snapshots")["n"] == 3
 
 
 def test_coverage_learned_after_watermark_does_not_leak_into_old_selection(history):

@@ -2,12 +2,12 @@
 import json
 import os
 
-import grpc
 from backend.generated import transport_pb2, transport_pb2_grpc
+from backend.infrastructure.tls import grpc_channel
 
 
 def main():
-    with grpc.insecure_channel('127.0.0.1:50051') as channel:
+    with grpc_channel(os.getenv('GRPC_HEALTH_TARGET', '127.0.0.1:50051')) as channel:
         response = transport_pb2_grpc.BusinessServiceStub(channel).Invoke(
             transport_pb2.InvocationRequest(method='health'), timeout=3,
             metadata=(('x-service-token', os.environ['SERVICE_TOKEN']),))

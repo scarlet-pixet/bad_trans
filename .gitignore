@@ -8,6 +8,8 @@
 !/.streamlit/
 !/Dockerfile
 !/compose.yaml
+!/compose.tls.yaml
+!/.gitattributes
 !/requirements.txt
 !/constraints.txt
 !/pytest.ini

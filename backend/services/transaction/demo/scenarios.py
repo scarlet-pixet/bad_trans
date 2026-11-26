@@ -8,7 +8,8 @@ def scenario_records(run_key: str, anchor: datetime) -> list[dict]:
     random = Random(run_key)
     records = []
     for client in range(3):
-        for day in range(12):
+        # Twenty-four active days satisfy the amount rule before live cases.
+        for day in range(24):
             records.append(
                 {
                     "client": client,
@@ -19,7 +20,7 @@ def scenario_records(run_key: str, anchor: datetime) -> list[dict]:
                     "input": {
                         "amount": str(90 + random.randrange(21)),
                         "occurredAt": (
-                            anchor - timedelta(days=14 - day, hours=2 - client)
+                            anchor - timedelta(days=26 - day, hours=2 - client)
                         ).isoformat(),
                     },
                 }

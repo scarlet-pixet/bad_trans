@@ -1,30 +1,51 @@
-"""Explicit replay after repairing a parked Kafka failure; original event ID is retained."""
+"""Request owner-side replay and show the durable status of the request."""
 from argparse import ArgumentParser
-from pathlib import Path
+from getpass import getpass
 import json
-import psycopg
-from psycopg.rows import dict_row
-from confluent_kafka import Producer
+import os
+from uuid import uuid4
+
+import requests
+
 
 def main():
-    parser=ArgumentParser()
-    parser.add_argument('--owner',choices=['analysis','case'],required=True)
-    parser.add_argument('--failure-id',required=True)
+    parser=ArgumentParser(description=__doc__)
+    parser.add_argument("--owner",choices=["analysis","case"],required=True)
+    parser.add_argument("--failure-id",required=True)
+    parser.add_argument("--reason",required=True)
+    parser.add_argument("--url",default="http://127.0.0.1:18100/graphql")
+    parser.add_argument("--ca")
+    parser.add_argument("--login",default="admin")
+    parser.add_argument("--key",default=None,help="Reuse this key after a lost response")
     args=parser.parse_args()
-    root=Path(__file__).resolve().parents[1]
-    env=dict(x.split('=',1) for x in (root/'.env').read_text().splitlines() if '=' in x)
-    with psycopg.connect(host='127.0.0.1',port=57743 if args.owner=='analysis' else 57744,
-                         dbname='bank_'+args.owner,user='bank_'+args.owner,password=env['DB_PASSWORD'],row_factory=dict_row) as c:
-        row=c.execute('SELECT * FROM event_failures WHERE id=%s FOR UPDATE',(args.failure_id,)).fetchone()
-        if not row:raise SystemExit('Failure ID not found')
-        event=json.loads(bytes(row['payload']))
-        if 'event_id' not in event:raise SystemExit('Repair invalid payload before replay; it is not a transient failure')
-        errors=[]
-        producer=Producer({'bootstrap.servers':'127.0.0.1:19100','message.timeout.ms':5000,'enable.idempotence':True})
-        producer.produce(row['topic'],key=event['event_id'],value=bytes(row['payload']),
-                         on_delivery=lambda error,msg:errors.append(str(error)) if error else None)
-        if producer.flush(6) or errors:raise SystemExit('Broker did not confirm replay')
-        c.execute("UPDATE event_failures SET status='REPLAYED' WHERE id=%s",(args.failure_id,))
-        print(json.dumps({'failureId':args.failure_id,'eventId':event['event_id'],'replayed':True}))
+    with requests.Session() as session:
+        if args.ca:
+            session.verify=args.ca
 
-if __name__=='__main__':main()
+        def graphql(query, variables):
+            reply=session.post(args.url,json=dict(query=query,variables=variables),timeout=20)
+            reply.raise_for_status()
+            result=reply.json()
+            if result.get("errors"):
+                raise SystemExit(result["errors"][0]["message"])
+            return result["data"]
+
+        login=graphql("mutation($l:String!,$p:String!){signIn(login:$l,password:$p){accessToken}}",
+                      dict(l=args.login,p=os.getenv("REPLAY_GATEWAY_PASSWORD") or getpass("Gateway password: ")))
+        session.headers["Authorization"]="Bearer "+login["signIn"]["accessToken"]
+        try:
+            key=args.key or str(uuid4())
+            print(f"Request key: {key}",flush=True)
+            result=graphql(
+                'mutation($o:String!,$id:ID!,$r:String!,$k:String!){'
+                'changeFailureReview(owner:$o,id:$id,action:"RETRY",reason:$r,idempotencyKey:$k)}',
+                dict(o=args.owner,id=args.failure_id,r=args.reason,k=key),
+            )["changeFailureReview"]
+            print(json.dumps(dict(failureId=result["id"],eventId=result["eventId"],
+                                  state=result["state"],proof=result["proof"]),ensure_ascii=False))
+        finally:
+            graphql("mutation{signOut}",{})
+
+
+if __name__=="__main__":
+    main()

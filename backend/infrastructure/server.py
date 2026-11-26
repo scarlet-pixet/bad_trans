@@ -53,14 +53,34 @@ WRITES = {"create_client", "open_account", "register_counterparty", "register_tr
           "publish_rule_version", "reanalyze_period", "distribute_cases", "create_report"}
 
 
+METHODS['transaction'].update({'get_operation_delivery', 'get_operation_transfer', 'register_transfer'})
+WRITES.add('register_transfer')
+SCOPED_TRANSACTION_READS = {'search_clients', 'search_transactions', 'get_operation_delivery', 'get_operation_transfer'}
+
 PRODUCT_METHODS = {
     'transaction': {'get_behavior_groups','prepare_behavior_history','get_behavior_history_page','start_source','get_sources','set_source_state','get_source_labels','get_ingestion_metrics','get_counterparties'},
-    'analysis': {'get_profile_version','get_result_history','get_feedback_status','get_behavior_profile_page','get_profile_refresh_status','get_behavior_profiles','get_detection_context','get_detections','get_quality','get_analysis_metrics'},
+    'analysis': {'get_operation_processing','get_profile_version','get_result_history','get_feedback_status','get_behavior_profile_page','get_profile_refresh_status','get_behavior_profiles','get_detection_context','get_detections','get_quality','get_analysis_metrics'},
     'case': {'get_case_metrics','authorize_transaction'},
 }
 
 
-PRODUCT_METHODS['analysis'].add('compare_profile_versions')
+PRODUCT_METHODS['analysis'] |= {'compare_profile_versions','start_profile_run','get_profile_run','list_profile_runs','compare_profile_runs'}
+PRODUCT_METHODS['transaction'] |= {'prepare_profile_groups','profile_group_page','get_client_labels','prepare_assessment_selection'}
+METHODS['case'].add('get_notification')
+PRODUCT_METHODS['analysis'] |= {'get_rule_catalog', 'get_period_run_results', 'compare_period_runs', 'start_period_reassessment'}
+BULK_IMPORT_METHODS = {
+    "start_bulk_import": "start", "get_bulk_import": "get",
+    "list_bulk_imports": "list", "get_bulk_import_errors": "errors",
+}
+PRODUCT_METHODS["transaction"].update(BULK_IMPORT_METHODS)
+LIFECYCLE_METHODS = {
+    "record_operation_event": "record", "get_operation_lifecycle": "detail", "get_client_spending": "spending",
+}
+PRODUCT_METHODS["transaction"].update(LIFECYCLE_METHODS)
+PRODUCT_METHODS["transaction"].add("declare_source_coverage")
+FAILURE_METHODS = {"list_failure_reviews": "list", "get_failure_review": "get", "change_failure_review": "change"}
+for owner in ("analysis", "case"):
+    PRODUCT_METHODS[owner].update(FAILURE_METHODS)
 
 
 REPORT_METHODS = {
@@ -153,10 +173,27 @@ class Business(rpc.BusinessServiceServicer):
             authorize(SERVICE,DB,actor,request.method,arguments)
             product = request.method in PRODUCT_METHODS[SERVICE]
             reporting = request.method in REPORT_METHODS[SERVICE]
-            if request.method in WRITES or product or reporting:
+            if request.method in WRITES | SCOPED_TRANSACTION_READS or product or reporting:
                 arguments["actor"] = actor
-            target = report_service() if reporting else product_service() if product else service_for(actor)
-            result = getattr(target, request.method)(**arguments)
+            if request.method in FAILURE_METHODS:
+                from backend.infrastructure.failure_review import FailureReview
+                result = getattr(FailureReview(DB, SERVICE), FAILURE_METHODS[request.method])(**arguments)
+            elif request.method == "declare_source_coverage":
+                from backend.services.transaction.history.source_coverage import declare
+
+                result = declare(DB, **arguments)
+            elif request.method in LIFECYCLE_METHODS:
+                from backend.services.transaction.ingest.lifecycle import (
+                    OperationLifecycle,
+                )
+
+                result = getattr(OperationLifecycle(DB), LIFECYCLE_METHODS[request.method])(**arguments)
+            elif request.method in BULK_IMPORT_METHODS:
+                from backend.services.transaction.ingest.bulk_import import BulkImport
+                result = getattr(BulkImport(DB), BULK_IMPORT_METHODS[request.method])(**arguments)
+            else:
+                target = report_service() if reporting else product_service() if product else service_for(actor)
+                result = getattr(target, request.method)(**arguments)
             return pb.InvocationResponse(result_json=json.dumps(wire(result), ensure_ascii=False).encode())
         except DomainError as exc:
             return pb.InvocationResponse(error_code=exc.code, error_message=str(exc))
@@ -260,6 +297,28 @@ class TypedTransaction(TypedHealth, bank_rpc.TransactionServiceServicer):
         return ParseDict(result, bank.GetHistoryResponse())
 
 
+def decode_rule_input(payload):
+    """Struct stores JSON numbers as doubles, even for integer policy fields."""
+    from backend.services.analysis.assessments.calculation import POLICY
+
+    integer_fields = {
+        key
+        for rule in POLICY["rules"].values()
+        for key, value in rule["parameters"].items()
+        if type(value) is int
+    }
+    parameters = payload.get("parameters", {})
+    for key in integer_fields & parameters.keys():
+        value = parameters[key]
+        if type(value) is float and value.is_integer() and abs(value) <= 2**53 - 1:
+            parameters[key] = int(value)
+    for example in payload.get("controlExamples", []):
+        if isinstance(example, dict):
+            count = example.get("count")
+            if type(count) is float and count.is_integer() and abs(count) <= 2**53 - 1:
+                example["count"] = int(count)
+
+
 def typed_execute(request, context, method, response_name):
     values = metadata(context)
     actor = actor_from({"id": values.get("x-actor-id", ""),
@@ -267,9 +326,11 @@ def typed_execute(request, context, method, response_name):
                         "role": values.get("x-actor-role", "")})
     arguments = MessageToDict(request, preserving_proto_field_name=False)
     arguments.pop("accessToken", None)
-    if method in WRITES:
+    if method in WRITES | SCOPED_TRANSACTION_READS:
         arguments["actor"] = actor
     try:
+        if method == "publish_rule_version":
+            decode_rule_input(arguments["input"])
         from backend.infrastructure.workspace_access import authorize
         authorize(SERVICE,DB,actor,method,arguments)
         result = getattr(service_for(actor), method)(**arguments)
@@ -391,8 +452,8 @@ def main():
     else:
         bank_rpc.add_CaseServiceServicer_to_server(TypedCase(), server)
     bind_address = os.getenv("GRPC_BIND", "[::]:50051")
-    if server.add_insecure_port(bind_address) == 0:
-        raise RuntimeError("Cannot bind the configured gRPC listener")
+    from backend.infrastructure.tls import grpc_bind
+    grpc_bind(server, bind_address)
     server.start()
     from backend.infrastructure.broker_health import loop as broker_health_loop
     start_worker(broker_health_loop, 'kafka-health')
@@ -408,8 +469,15 @@ def main():
         start_worker(events.feedback_bootstrap_loop,'feedback-bootstrap')
     if SERVICE == 'transaction':
         start_worker(product_service().loop, 'source-ingestion')
+        from backend.services.transaction.ingest.bulk_import import BulkImport
+        start_worker(BulkImport(DB).loop, 'bulk-import')
     if SERVICE == 'analysis':
         start_worker(product_service().loop, 'profile-refresh')
+        from backend.services.analysis.profiles.bulk import ProfileRuns
+        from backend.infrastructure.clients import EventTransactionClient
+        start_worker(ProfileRuns(DB, EventTransactionClient()).loop, 'profile-runs')
+        from backend.services.analysis.assessments.period_worker import PeriodReassessment
+        start_worker(PeriodReassessment(DB, EventTransactionClient()).loop, 'period-reassessment')
     logging.info("Bad Trans %s gRPC running; Kafka workers active", SERVICE)
     server.wait_for_termination()
 

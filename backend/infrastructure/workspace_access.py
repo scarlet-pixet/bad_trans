@@ -19,10 +19,15 @@ def transaction_access(actor, transaction_id):
 def authorize(owner, db, actor, method, arguments):
     if actor.role != "ANALYST" or owner == "case":
         return
-    if owner == "analysis" and method in {"get_profile_version", "get_result_history"}:
+    if owner == "transaction" and method in {
+        "import_transactions", "start_bulk_import", "get_bulk_import",
+        "list_bulk_imports", "get_bulk_import_errors",
+    }:
+        return  # Transaction checks the write role; no case-owned data is returned.
+    if owner == "analysis" and method in {"get_profile_version", "get_result_history", "get_operation_processing"}:
         return  # These methods enforce Case scope themselves before returning data.
     tx = None
-    if owner == "transaction" and method in {"get_transaction", "report_transaction_part"}:
+    if owner == "transaction" and method in {"get_transaction", "report_transaction_part", "get_operation_delivery", "get_operation_transfer", "get_operation_lifecycle"}:
         tx = arguments["id"] if method == "get_transaction" else arguments["transactionId"]
     elif owner == "analysis":
         if method in {

@@ -40,7 +40,8 @@ async def lifespan(app):
     app.state.security = AuthService(repository, os.environ['SESSION_REDIS_URL'], os.environ['JWT_SECRET'], int(os.getenv('SESSION_TTL', '1800')))
     server = grpc.server(ThreadPoolExecutor(max_workers=4), interceptors=[ServerLogging()])
     rpc.add_AuthServiceServicer_to_server(AuthGrpcService(app.state.security), server)
-    server.add_insecure_port('[::]:50051')
+    from backend.infrastructure.tls import grpc_bind
+    grpc_bind(server, '[::]:50051')
     server.start()
     try:
         yield

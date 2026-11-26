@@ -13,6 +13,7 @@ from backend.common.events import utc, ident, make_event, add_outbox
 from backend.common.receipts import receipt
 from backend.infrastructure.resilience import current_trace, log, channel_for
 from backend.services.transaction.ingest.registration import TransactionService
+from backend.services.transaction.ingest.import_rows import ImportRegistration, existing_transaction
 
 class TransactionCommands(TransactionService):
 
@@ -23,26 +24,15 @@ class TransactionCommands(TransactionService):
         payload = {k: v for k, v in input.items() if k != 'idempotencyKey'}
 
         def perform(c):
+            c.execute("SELECT pg_advisory_xact_lock(hashtextextended(%s,0))",
+                      ("import-file:" + input["fileHash"],))
             old = c.execute('SELECT * FROM import_batches WHERE file_hash=%s', (input['fileHash'],)).fetchone()
             if old:
                 return {'id': str(old['id'])}
             batch = ident()
             c.execute("INSERT INTO import_batches VALUES (%s,%s,'ACCEPTED',%s,0,0,'[]',%s,now())", (batch, input['fileHash'], len(input['items']), actor.id))
 
-            class BoundRepository:
-
-                def execute(self, actor, name, key, payload, action):
-                    tx = action(c)
-                    c.execute('UPDATE transactions SET batch_id=%s WHERE id=%s', (batch, tx))
-                    client = c.execute('SELECT client_id FROM accounts WHERE id=%s', (payload['accountId'],)).fetchone()
-                    event = make_event({'transaction_id': tx, 'client_id': str(client['client_id'])})
-                    event['correlation_id'] = current_trace()
-                    add_outbox(c, 'transaction.registered.v1', str(client['client_id']), event)
-                    return tx
-
-                def transaction(self, id):
-                    return id
-            service = TransactionService(BoundRepository())
+            service = TransactionService(ImportRegistration(c, batch))
             errors = []
             new = 0
             duplicates = 0
@@ -54,11 +44,7 @@ class TransactionCommands(TransactionService):
                     for index, item in enumerate(input['items'], 1):
                         try:
                             with c.transaction():
-                                old = c.execute('SELECT * FROM transactions WHERE source=%s AND external_id=%s', (item['source'], item['externalId'])).fetchone()
-                                if old:
-                                    stamp = datetime.fromisoformat(str(item['occurredAt']).replace('Z', '+00:00'))
-                                    if any([str(old['account_id']) != item['accountId'], str(old['counterparty_id'] or '') != str(item.get('counterpartyId') or ''), old['amount'] != Decimal(str(item['amount'])), old['currency'] != item['currency'], old['direction'] != item['direction'], old['occurred_at'] != stamp]):
-                                        raise DomainError('CONFLICT', 'Внешний ID уже имеет другое содержимое')
+                                if existing_transaction(c, item):
                                     duplicates += 1
                                 else:
                                     service.register_transaction(actor, item)

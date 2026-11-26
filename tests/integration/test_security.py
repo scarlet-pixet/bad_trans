@@ -53,18 +53,22 @@ def test_health_and_schema_preserve_previous_work():
     health = requests.get(URL.replace("/graphql", "/health"), timeout=20).json()
     assert health["allReady"] and health["auth"]["redisReady"]
     assert health["auth"]["database"] == "bank_auth"
-    assert health["queryCount"] == 25 and health["mutationCount"] == 25
+    assert health["queryCount"] > 0 and health["mutationCount"] > 0
     assert health["transport"] == "gRPC + Kafka"
     schema = build_schema(requests.get(URL.replace("/graphql", "/schema.graphql"), timeout=20).text)
     prior = build_schema((ROOT / "backend/contracts/schema.graphql").read_text(encoding="utf-8"))
-    assert len(schema.query_type.fields) == 25
+    assert health["queryCount"] == len(schema.query_type.fields)
+    assert health["mutationCount"] == len(schema.mutation_type.fields)
+    assert {"detectionContext", "behaviorProfilePage", "ruleCatalog"} <= schema.query_type.fields.keys()
+    assert {"takeCase", "distributeCases", "startBulkImport", "startPeriodReassessment"} <= schema.mutation_type.fields.keys()
     assert set(prior.query_type.fields) <= set(schema.query_type.fields)
     for name in prior.query_type.fields:
         expected, actual = prior.query_type.fields[name], schema.query_type.fields[name]
         assert str(expected.type) == str(actual.type)
         assert {key: str(value.type) for key, value in expected.args.items()} == {
             key: str(value.type) for key, value in actual.args.items()}
-    for name in schema.mutation_type.fields:
+    assert set(prior.mutation_type.fields) <= set(schema.mutation_type.fields)
+    for name in prior.mutation_type.fields:
         expected, actual = prior.mutation_type.fields[name], schema.mutation_type.fields[name]
         assert str(expected.type) == str(actual.type)
         assert {key: str(value.type) for key, value in expected.args.items()} == {
@@ -107,7 +111,8 @@ def test_gateway_and_service_role_policy():
     assert gql("query{transactionSummary{transactionCount}}", token=analyst)[0] == 403
     assert gql("query{alias:transactionSummary{transactionCount}}", token=analyst)[0] == 403
     assert gql("query{...Protected} fragment Protected on Query{transactionSummary{transactionCount}}", token=analyst)[0] == 403
-    assert data("query{clients{totalCount}}", token=analyst)["clients"]["totalCount"] >= 2
+    assert gql("query{clients{totalCount}}", token=analyst)[0] == 403
+    assert data("query{clients{totalCount}}", token=manager)["clients"]["totalCount"] >= 2
     create = "mutation($x:ClientInput!){createClient(input:$x){id externalId}}"
     values = {"x": {"externalId": "SEC-" + uuid4().hex,
                     "displayName": "Учебный клиент безопасности",
@@ -124,12 +129,13 @@ def test_gateway_and_service_role_policy():
                          {"tx": ids['transaction'], "result": ids['result2']}, analyst)
     assert investigation['transaction']['id'] == ids['transaction']
     assert investigation['analysisResult']['hits']
-    tx = data("mutation($x:TransactionInput!){registerTransaction(input:$x){id}}",
-              {"x": {"source": "security_test", "externalId": uuid4().hex,
-                     "accountId": ids['account'], "amount": "10.00", "currency": "BYN",
-                     "direction": "OUT", "occurredAt": "2026-10-18T12:00:00Z",
-                     "idempotencyKey": uuid4().hex}}, analyst)['registerTransaction']
-    assert tx['id']
+    register = "mutation($x:TransactionInput!){registerTransaction(input:$x){id}}"
+    transaction = {"x": {"source": "security_test", "externalId": uuid4().hex,
+                         "accountId": ids['account'], "amount": "10.00", "currency": "BYN",
+                         "direction": "OUT", "occurredAt": "2026-10-18T12:00:00Z",
+                         "idempotencyKey": uuid4().hex}}
+    assert gql(register, transaction, analyst)[0] == 403
+    assert data(register, transaction, manager)['registerTransaction']['id']
     # A report remains private to its author even when its UUID is known.
     own_report = str(uuid4())
     conf = settings()

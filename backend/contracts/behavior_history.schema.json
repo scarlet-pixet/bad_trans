@@ -62,7 +62,7 @@
         "limit": {
           "type": "integer",
           "minimum": 1,
-          "maximum": 100
+          "maximum": 500
         }
       }
     },
@@ -88,7 +88,7 @@
         "itemCount": {
           "type": "integer",
           "minimum": 0,
-          "maximum": 10000
+          "maximum": 50000
         },
         "capturedAt": {
           "type": "string"
@@ -135,6 +135,48 @@
                   "to": {
                     "type": "string"
                   }
+                }
+              }
+            },
+            "hourIntervals": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "from",
+                  "to"
+                ],
+                "properties": {
+                  "from": {
+                    "type": "string"
+                  },
+                  "to": {
+                    "type": "string"
+                  }
+                }
+              }
+            },
+            "gaps": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "accountsWithoutScope",
+                "day",
+                "hour"
+              ],
+              "properties": {
+                "accountsWithoutScope": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "day": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "hour": {
+                  "type": "integer",
+                  "minimum": 0
                 }
               }
             }
@@ -194,6 +236,32 @@
         },
         "ingestedAt": {
           "type": "string"
+        },
+        "timePrecision": {
+          "enum": [
+            "EXACT",
+            "DATE"
+          ]
+        },
+        "operationKind": {
+          "enum": [
+            "PURCHASE",
+            "TRANSFER",
+            "WITHDRAWAL",
+            "DEPOSIT",
+            "REFUND",
+            "REVERSAL"
+          ]
+        },
+        "operationChannel": {
+          "enum": [
+            "POS",
+            "ONLINE",
+            "ATM",
+            "BRANCH",
+            "BANK_API",
+            "UNKNOWN"
+          ]
         }
       }
     },
@@ -215,11 +283,11 @@
           "type": "string"
         },
         "itemCount": {
-          "type": "integer"
+          "$ref": "#/$defs/Snapshot/properties/itemCount"
         },
         "items": {
           "type": "array",
-          "maxItems": 100,
+          "maxItems": 500,
           "items": {
             "$ref": "#/$defs/Item"
           }

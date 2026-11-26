@@ -7,7 +7,7 @@ from uuid import uuid4
 from backend.generated import bank_pb2 as bank, bank_pb2_grpc as rpc
 from .test_commands import ENV
 
-METADATA=(('x-service-token',ENV['SERVICE_TOKEN']),)
+METADATA=(('x-service-token',ENV.get('SERVICE_TOKEN', '')),)
 
 @pytest.mark.parametrize('owner,port',[('auth',51051),('transaction',51052),('analysis',51053),('case',51054)])
 def test_typed_health_is_implemented_for_every_service(owner,port):

@@ -1,11 +1,12 @@
-from backend.common.data import uuid, period, currency, money, pagination, paged, DomainError
-from datetime import datetime
+from backend.common.data import uuid, period, currency, money, DomainError
 from decimal import Decimal, InvalidOperation
 from uuid import uuid4
 from backend.common.data import DomainError, currency, money, period, uuid
 from backend.common.commands import require_role, required_text
+from backend.common.time_precision import observation_time
 
 from backend.services.transaction.history.queries import TransactionQueries
+from backend.services.transaction.ingest.transfer import normalize_transfer, save_transfer
 
 class TransactionService(TransactionQueries):
 
@@ -15,6 +16,24 @@ class TransactionService(TransactionQueries):
 
 
 
+
+    def get_operation_delivery(self, actor, transactionId):
+        require_role(actor, "MANAGER", "ANALYST")
+        tx = uuid(transactionId)
+        rows = self.repository.db.query(
+            """SELECT t.id AS transaction_id,o.id,o.published_at
+            FROM transactions t LEFT JOIN outbox_events o
+            ON o.event_type='transaction.registered.v1'
+            AND o.payload #>> '{payload,transaction_id}'=%s
+            AND o.payload->>'event_id'=o.id::text
+            WHERE t.id=%s LIMIT 2""",
+            (tx, tx),
+        )
+        if not rows:
+            raise DomainError("NOT_FOUND", "Операция не найдена")
+        if len(rows) != 1 or rows[0]["id"] is None:
+            return {"eventId": None, "queued": False}
+        return {"eventId": str(rows[0]["id"]), "queued": rows[0]["published_at"] is None}
 
     def create_client(self, actor, input):
         require_role(actor, 'MANAGER', 'ADMIN')
@@ -67,7 +86,31 @@ class TransactionService(TransactionQueries):
         result = self.repository.execute(actor, 'registerCounterparty', input['idempotencyKey'], payload, perform)
         return self.repository.counterparty(result)
 
-    def register_transaction(self, actor, input):
+    def get_operation_transfer(self, actor, transactionId):
+        require_role(actor, "MANAGER", "ANALYST", "ADMIN")
+        tx = uuid(transactionId)
+        row = self.repository.db.one(
+            """SELECT p.id,p.namespace,p.external_ref,p.parties,p.owner_relation,p.owner_evidence
+            FROM operation_transfer_entries e JOIN operation_transfers p ON p.id=e.transfer_id
+            WHERE e.transaction_id=%s""", (tx,),
+        )
+        if not row:
+            return None
+        return {
+            "transferId": str(row["id"]),
+            "transferNamespace": row["namespace"],
+            "transferRef": row["external_ref"],
+            "debit": row["parties"]["debit"],
+            "credit": row["parties"]["credit"],
+            "ownerRelation": row["owner_relation"],
+            "ownerEvidence": row["owner_evidence"],
+        }
+
+    def register_transfer(self, actor, input):
+        require_role(actor, "MANAGER", "ADMIN")
+        return self.register_transaction(actor, input["transaction"], transfer=input)
+
+    def register_transaction(self, actor, input, *, transfer=None):
         require_role(actor, 'MANAGER', 'ANALYST', 'ADMIN')
         account_id = uuid(input['accountId'])
         counterparty_id = uuid(input['counterpartyId']) if input.get('counterpartyId') else None
@@ -83,15 +126,14 @@ class TransactionService(TransactionQueries):
                 raise ValueError()
         except (ValueError, InvalidOperation):
             raise DomainError('BAD_INPUT', 'Сумма должна быть положительной с точностью до копеек') from None
-        occurred = input['occurredAt']
-        if isinstance(occurred, str):
-            try:
-                occurred = datetime.fromisoformat(occurred.replace('Z', '+00:00'))
-            except ValueError:
-                raise DomainError('BAD_INPUT', 'Некорректная дата операции') from None
-        if not occurred.tzinfo:
-            raise DomainError('BAD_INPUT', 'Дата операции требует часовой пояс')
+        occurred, precision = observation_time(source, input['occurredAt'], input.get('timePrecision'))
         payload = {'source': source, 'externalId': external, 'accountId': account_id, 'counterpartyId': counterparty_id, 'amount': str(amount), 'currency': code, 'direction': direction, 'occurredAt': occurred.isoformat()}
+
+        if input.get("timePrecision") or (isinstance(input["occurredAt"], str) and len(input["occurredAt"]) == 10):
+            payload["timePrecision"] = precision
+        if transfer is not None:
+            transfer = normalize_transfer(transfer, account_id, direction)
+            payload["transfer"] = transfer
 
         def perform(conn):
             account = conn.execute('SELECT a.currency,a.status,c.is_active FROM accounts a JOIN bank_clients c ON c.id=a.client_id WHERE a.id=%s', (account_id,)).fetchone()
@@ -104,7 +146,9 @@ class TransactionService(TransactionQueries):
             if counterparty_id and (not conn.execute('SELECT 1 FROM counterparties WHERE id=%s', (counterparty_id,)).fetchone()):
                 raise DomainError('NOT_FOUND', 'Контрагент не найден')
             value = str(uuid4())
-            conn.execute('INSERT INTO transactions (id,source,external_id,account_id,counterparty_id,batch_id,amount,currency,direction,occurred_at,ingested_at) VALUES (%s,%s,%s,%s,%s,NULL,%s,%s,%s,%s,now())', (value, source, external, account_id, counterparty_id, amount, code, direction, occurred))
+            conn.execute('INSERT INTO transactions (id,source,external_id,account_id,counterparty_id,batch_id,amount,currency,direction,occurred_at,ingested_at,time_precision) VALUES (%s,%s,%s,%s,%s,NULL,%s,%s,%s,%s,now(),%s)', (value, source, external, account_id, counterparty_id, amount, code, direction, occurred, precision))
+            if transfer is not None:
+                save_transfer(conn, transfer, value, direction)
             return value
         result = self.repository.execute(actor, 'registerTransaction', input['idempotencyKey'], payload, perform)
         return self.repository.transaction(result)

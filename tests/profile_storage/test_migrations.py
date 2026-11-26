@@ -8,6 +8,7 @@ import psycopg
 import pytest
 
 from backend.infrastructure.product_migrations import migrate
+from backend.services.transaction.history.snapshots import HistorySnapshots
 
 ROOT = Path(__file__).resolve().parents[2] / "infra/postgres"
 
@@ -54,11 +55,36 @@ def test_upgrade_preserves_legacy_rows_without_fabricated_profiles(database, own
         )
 
 
+def test_large_history_migration_preserves_existing_snapshot(database, tmp_path):
+    db = database("transaction")
+    root = migration_copy(tmp_path, "transaction")
+    name = "017_large_history_snapshots.sql"
+    future = root / "transaction" / name
+    future.unlink()
+    migrate(db, "transaction", migrations_root=root)
+    with db.connect() as connection:
+        connection.execute(
+            """INSERT INTO behavior_history_snapshots
+               (id,request_key,request_hash,client_id,currency,direction,window_start,as_of,
+                ingested_before,captured_at,item_count,digest,coverage)
+               SELECT gen_random_uuid(),'pre-large-migration',repeat('1',64),id,'BYN','OUT',
+                      now()-interval '30 days',now(),now(),now(),0,repeat('2',64),
+                      '{"mode":"UNKNOWN","revision":"legacy","intervals":[],"declaredBySource":null}'::jsonb
+               FROM bank_clients LIMIT 1"""
+        )
+    snapshot = db.one("SELECT * FROM behavior_history_snapshots WHERE request_key='pre-large-migration'")
+    before = HistorySnapshots(db).page({"snapshotId": str(snapshot["id"])})
+    shutil.copy2(ROOT / "transaction" / name, future)
+    migrate(db, "transaction", migrations_root=root)
+    assert HistorySnapshots(db).page({"snapshotId": str(snapshot["id"])}) == before
+
+
 def test_failure_rolls_back_whole_batch_and_retry_succeeds(database, tmp_path):
     db = database()
     root = migration_copy(tmp_path)
-    (root / "analysis/010_probe.sql").write_text("CREATE TABLE migration_probe(id int)")
-    broken = root / "analysis/011_broken.sql"
+    next_number=max(int(p.name[:3]) for p in (root / "analysis").glob("*.sql"))+1
+    (root / f"analysis/{next_number:03}_probe.sql").write_text("CREATE TABLE migration_probe(id int)")
+    broken = root / f"analysis/{next_number+1:03}_broken.sql"
     broken.write_text("SELECT definitely_missing_column")
     with pytest.raises(psycopg.Error):
         migrate(db, "analysis", migrations_root=root)
@@ -69,7 +95,7 @@ def test_failure_rolls_back_whole_batch_and_retry_succeeds(database, tmp_path):
     )
     broken.write_text("CREATE TABLE migration_probe_two(id int)")
     migrate(db, "analysis", migrations_root=root)
-    assert db.one("SELECT count(*) AS n FROM product_schema_migrations")["n"] == 7
+    assert db.one("SELECT count(*) AS n FROM product_schema_migrations")["n"] == len([p for p in (root/"analysis").glob("*.sql") if int(p.name[:3])>=5])
 
 
 def test_hash_mismatch_and_missing_applied_file_are_errors(database, tmp_path):
@@ -78,6 +104,12 @@ def test_hash_mismatch_and_missing_applied_file_are_errors(database, tmp_path):
     migrate(db, "analysis", migrations_root=root)
     path = root / "analysis/006_profile_storage.sql"
     original = path.read_bytes()
+    normalized = original.replace(b"\r\n", b"\n")
+    alternate = normalized if original != normalized else normalized.replace(b"\n", b"\r\n")
+    ledger = db.query("SELECT name,sha256 FROM product_schema_migrations ORDER BY name")
+    path.write_bytes(alternate)
+    migrate(db, "analysis", migrations_root=root)
+    assert db.query("SELECT name,sha256 FROM product_schema_migrations ORDER BY name") == ledger
     path.write_bytes(original + b"\n-- changed\n")
     with pytest.raises(ValueError, match="hash"):
         migrate(db, "analysis", migrations_root=root)
@@ -90,7 +122,7 @@ def test_concurrent_start_and_duplicate_number(database, tmp_path):
     db = database()
     with ThreadPoolExecutor(max_workers=4) as pool:
         list(pool.map(lambda _: migrate(db, "analysis"), range(4)))
-    assert db.one("SELECT count(*) AS n FROM product_schema_migrations")["n"] == 5
+    assert db.one("SELECT count(*) AS n FROM product_schema_migrations")["n"] == len([p for p in (ROOT/"analysis").glob("*.sql") if int(p.name[:3])>=5])
     root = migration_copy(tmp_path)
     (root / "analysis/006_duplicate.sql").write_text("SELECT 1")
     with pytest.raises(ValueError, match="duplicate"):

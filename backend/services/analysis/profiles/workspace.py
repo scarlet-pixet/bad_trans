@@ -6,6 +6,7 @@ from backend.common.commands import require_role
 from backend.common.data import DomainError, uuid
 from backend.services.analysis.profiles.pages import encode, decode
 from backend.services.analysis.profiles.observation import timestamp
+from backend.services.analysis.profiles.public_metrics import public_metrics
 from backend.infrastructure.workspace_access import transaction_access
 from backend.common.workspace_contract import checked
 
@@ -51,7 +52,7 @@ class WorkspaceService:
         value = dict(
             schemaVersion=1,
             metadata=metadata,
-            metrics=row["metrics"],
+            metrics=public_metrics(row["metrics"]),
             servedAt=datetime.now(UTC).isoformat(),
             reportAvailability="AVAILABLE",
         )

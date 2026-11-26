@@ -3,13 +3,21 @@
 import base64
 import json
 from datetime import UTC, datetime
+from tempfile import SpooledTemporaryFile
 from uuid import uuid4
 
 from psycopg.types.json import Jsonb
 
-from backend.common.behavior_contract import digest, validate
+from backend.common.behavior_contract import (
+    MAX_HISTORY_ITEMS,
+    canonical,
+    digest,
+    digest_array,
+    validate,
+)
 from backend.common.commands import required_text
 from backend.common.data import DomainError, period, uuid
+from backend.services.transaction.history.source_coverage import scoped_observation
 
 
 class HistorySnapshots:
@@ -47,8 +55,9 @@ class HistorySnapshots:
             lock = "behavior-history:" + p["requestKey"]
             c.execute("SELECT pg_advisory_lock(hashtextextended(%s,0))", (lock,))
             try:
-                with c.transaction():
+                with c.transaction(), SpooledTemporaryFile(max_size=1024 * 1024, mode="w+b") as staged:
                     c.execute("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ")
+                    c.execute("SET LOCAL statement_timeout = '25s'")
                     existing = c.execute(
                         "SELECT * FROM behavior_history_snapshots WHERE request_key=%s",
                         (p["requestKey"],),
@@ -67,25 +76,7 @@ class HistorySnapshots:
                         "SELECT 1 FROM bank_clients WHERE id=%s", (p["clientId"],)
                     ).fetchone():
                         raise DomainError("NOT_FOUND", "Client does not exist")
-                    rows = c.execute(
-                        """SELECT t.*,a.client_id FROM transactions t JOIN accounts a ON a.id=t.account_id
-                        WHERE a.client_id=%s AND t.currency=%s AND t.direction=%s
-                        AND t.occurred_at>=%s AND t.occurred_at<%s AND t.ingested_at<%s
-                        ORDER BY t.occurred_at,t.id LIMIT 10001""",
-                        (
-                            p["clientId"],
-                            p["currency"],
-                            p["direction"],
-                            start,
-                            cutoff,
-                            watermark,
-                        ),
-                    ).fetchall()
-                    if len(rows) > 10000:
-                        raise DomainError(
-                            "BAD_INPUT", "HISTORY_LIMIT: more than 10000 operations"
-                        )
-                    facts = [self.item(row) for row in rows]
+                    item_count, facts_digest, scopes = self.capture(c, p, start, cutoff, watermark, staged)
                     coverage_row = c.execute(
                         """SELECT * FROM behavior_observation_coverage WHERE client_id=%s
                         AND currency=%s AND direction=%s AND known_at<%s ORDER BY known_at DESC,id DESC LIMIT 1""",
@@ -104,11 +95,14 @@ class HistorySnapshots:
                             intervals=coverage_row["intervals"],
                             declaredBySource=coverage_row["declared_by_source"],
                         )
+                    scoped = scoped_observation(c, p, scopes, start, cutoff, min(captured, watermark))
+                    if scoped is not None:
+                        coverage = scoped
                     identifier = str(uuid4())
                     result = dict(
                         snapshotId=identifier,
-                        digest=digest(facts),
-                        itemCount=len(facts),
+                        digest=facts_digest,
+                        itemCount=item_count,
                         capturedAt=captured.isoformat(),
                         coverage=coverage,
                         selection=p,
@@ -131,23 +125,54 @@ class HistorySnapshots:
                             cutoff,
                             watermark,
                             captured,
-                            len(facts),
+                            item_count,
                             result["digest"],
                             Jsonb(coverage),
                         ),
                     )
-                    with c.cursor() as cursor:
-                        cursor.executemany(
-                            """INSERT INTO behavior_history_snapshot_items(snapshot_id,ordinal,transaction_id,facts)
-                            VALUES (%s,%s,%s,%s)""",
-                            [
-                                (identifier, i, r["id"], Jsonb(r))
-                                for i, r in enumerate(facts)
-                            ],
-                        )
+                    staged.seek(0)
+                    with c.cursor() as cursor, cursor.copy(
+                        """COPY behavior_history_snapshot_items(snapshot_id,ordinal,transaction_id,facts)
+                           FROM STDIN"""
+                    ) as copy:
+                        for ordinal, line in enumerate(staged):
+                            transaction_id, raw = line.decode("utf-8").rstrip("\n").split(" ", 1)
+                            copy.write_row((identifier, ordinal, transaction_id, raw))
                     return result
             finally:
                 c.execute("SELECT pg_advisory_unlock(hashtextextended(%s,0))", (lock,))
+
+    def capture(self, connection, parameters, start, cutoff, watermark, staged):
+        scopes = set()
+        count = 0
+        with connection.cursor(name="behavior_snapshot_rows") as cursor:
+            cursor.itersize = 1000
+            cursor.execute(
+                """SELECT t.*,a.client_id,coalesce(m.channel,'UNKNOWN') AS channel,m.kind AS operation_kind
+                FROM transactions t JOIN accounts a ON a.id=t.account_id
+                LEFT JOIN managed_operations m ON m.transaction_id=t.id
+                WHERE a.client_id=%s AND t.currency=%s AND t.direction=%s
+                AND t.occurred_at>=%s AND t.occurred_at<%s AND t.ingested_at<%s
+                ORDER BY t.occurred_at,t.id LIMIT %s""",
+                (parameters["clientId"], parameters["currency"], parameters["direction"],
+                 start, cutoff, watermark, MAX_HISTORY_ITEMS + 1),
+            )
+
+            def serialized_items():
+                nonlocal count
+                for count, row in enumerate(cursor, 1):
+                    if count > MAX_HISTORY_ITEMS:
+                        raise DomainError(
+                            "BAD_INPUT", f"HISTORY_LIMIT: more than {MAX_HISTORY_ITEMS} operations"
+                        )
+                    item = self.item(row)
+                    encoded = canonical(item).encode("utf-8")
+                    staged.write(str(row["id"]).encode("ascii") + b" " + encoded + b"\n")
+                    scopes.add((item["accountId"], row["source"], row["channel"]))
+                    yield encoded
+
+            facts_digest = digest_array(serialized_items())
+        return count, facts_digest, scopes
 
     def page(self, parameters):
         p = validate("PageRequest", parameters)
@@ -238,5 +263,8 @@ class HistorySnapshots:
                 direction=row["direction"],
                 occurredAt=row["occurred_at"].isoformat(),
                 ingestedAt=row["ingested_at"].isoformat(),
+                **({"timePrecision": row["time_precision"]} if row.get("time_precision") else {}),
+                **({"operationKind": row["operation_kind"], "operationChannel": row["channel"]}
+                   if row.get("operation_kind") else {}),
             ),
         )

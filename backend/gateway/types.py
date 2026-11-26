@@ -86,6 +86,7 @@ class Transaction:
     direction: Direction
     occurredAt: datetime
     ingestedAt: datetime
+    timePrecision: str | None = None
 
 @strawberry.type
 class ImportError:
@@ -242,24 +243,28 @@ class ClientPage:
     items: list[Client]
     nextCursor: str | None = None
     totalCount: int
+    currentCursor: str | None = None
 
 @strawberry.type
 class TransactionPage:
     items: list[Transaction]
     nextCursor: str | None = None
     totalCount: int
+    currentCursor: str | None = None
 
 @strawberry.type
 class CasePage:
     items: list[ReviewCase]
     nextCursor: str | None = None
     totalCount: int
+    currentCursor: str | None = None
 
 @strawberry.type
 class NotificationPage:
     items: list[Notification]
     nextCursor: str | None = None
     totalCount: int
+    currentCursor: str | None = None
 
 @strawberry.input
 class PeriodInput:
@@ -318,6 +323,7 @@ class TransactionInput:
     direction: Direction
     occurredAt: datetime
     idempotencyKey: str
+    timePrecision: str | None = None
 
 @strawberry.input
 class ImportBatchInput:

@@ -92,6 +92,7 @@ def test_analysis_context_keeps_authoritative_saved_result_fields():
     row = dict(
         id="result",
         transaction_id="tx",
+        run_id="run",
         profile_id=None,
         score=35,
         threshold=40,

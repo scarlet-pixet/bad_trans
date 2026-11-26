@@ -32,3 +32,6 @@ class Transaction:
     direction: str
     occurred_at: datetime
     ingested_at: datetime
+    time_precision: str | None = None
+    operation_kind: str | None = None
+    operation_channel: str | None = None

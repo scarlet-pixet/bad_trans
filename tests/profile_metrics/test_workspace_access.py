@@ -64,9 +64,10 @@ def test_legacy_reads_require_current_case_grant(owner,method,args,row):
         gate.assert_called_once()
 
 
-def test_gateway_analyst_scope_does_not_include_global_reads_or_imports():
+def test_gateway_analyst_scope_allows_batch_import_and_keeps_case_reads_scoped():
     from backend.gateway.security import QUERY_ROLES,MUTATION_ROLES
     import backend.gateway.app
     assert not ({'clients','transactions','analysisRun','behaviorProfilePage'} & QUERY_ROLES['ANALYST'])
-    assert not ({'importTransactions','buildProfile','registerTransaction'} & MUTATION_ROLES['ANALYST'])
+    assert 'importTransactions' in MUTATION_ROLES['ANALYST']
+    assert not ({'buildProfile','registerTransaction','publishRuleVersion','reanalyzePeriod'} & MUTATION_ROLES['ANALYST'])
     assert {'caseContext','profileVersion','resultHistory'} <= QUERY_ROLES['ANALYST']

@@ -2,6 +2,8 @@
 
 import streamlit as st
 
+from frontend.amount_basis import render_amount_basis
+
 NAMES = {
     "AMOUNT_DEVIATION": "Сумма",
     "PROFILE_FREQUENCY": "Частота",
@@ -21,6 +23,8 @@ REASONS = {
     "INSUFFICIENT_REFERENCE_HOURS": "Недостаточно сопоставимых часов",
     "INSUFFICIENT_CONFIRMED_DAYS": "Недостаточно подтверждённых дней наблюдения",
     "CURRENT_HOUR_NOT_COVERED": "Охват текущего часа не подтверждён",
+    "SUBJECT_TIME_UNKNOWN": "Время операции неизвестно: источник передал только дату",
+    "HISTORY_TIME_UNKNOWN": "В истории есть операции без точного времени",
     "MISSING_COUNTERPARTY": "Контрагент не указан",
     "INSUFFICIENT_KNOWN_COUNTERPARTIES": "Недостаточно известных контрагентов",
     "UNKNOWN_COVERAGE": "Охват сравниваемых периодов неизвестен",
@@ -57,16 +61,19 @@ def render_case_score(case, details):
 
 
 def render_assessment(details):
+    if details.get("amountBasis"):
+        render_amount_basis(details["amountBasis"])
     status = details.get("assessmentStatus")
     if status == "UNAVAILABLE":
         st.warning(
-            "Оценка недоступна. Недостаток данных не означает отсутствие отклонений."
+            "Анализ завершён. Для числовой оценки недостаточно истории или покрытия."
         )
     elif status == "PARTIAL":
-        st.warning("Оценка частичная: часть проверок выполнить не удалось.")
+        st.warning("Анализ завершён с частичной оценкой. Недоступные проверки и причины указаны ниже.")
     elif status == "COMPLETE":
         st.caption(
-            "Все применимые включённые проверки выполнены. Балл не является вероятностью мошенничества."
+            "Анализ завершён. Все применимые включённые проверки выполнены. "
+            "Балл не является вероятностью мошенничества."
         )
     if not details.get("checks"):
         return

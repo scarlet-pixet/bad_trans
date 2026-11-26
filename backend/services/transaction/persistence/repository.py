@@ -1,4 +1,5 @@
 from backend.common.data import Repository, model
+from backend.common.navigation import seek
 from backend.services.transaction.persistence.models import Account, Client, Transaction
 TX = 'SELECT t.*,a.client_id FROM transactions t JOIN accounts a ON a.id=t.account_id'
 from backend.common.data import model
@@ -24,11 +25,16 @@ class TransactionRepository(Repository):
             if key in filters:
                 clauses.append(col + '=%s')
                 params.append(filters[key])
-        rows, total = self.page_rows('SELECT * FROM bank_clients', clauses, params, page)
-        return (self.enrich_clients(rows), total)
+        return seek(self.db, 'SELECT * FROM bank_clients', clauses, params, page,
+                    self.enrich_clients, client_revision=True)
 
     def transaction(self, id):
-        return model(Transaction, self.db.one(TX + ' WHERE t.id=%s', (id,)))
+        return model(Transaction, self.db.one(
+            """SELECT t.*,a.client_id,m.kind AS operation_kind,m.channel AS operation_channel
+            FROM transactions t JOIN accounts a ON a.id=t.account_id
+            LEFT JOIN managed_operations m ON m.transaction_id=t.id WHERE t.id=%s""",
+            (id,),
+        ))
 
     def transactions(self, filters, page):
         clauses, params = ([], [])
@@ -43,8 +49,8 @@ class TransactionRepository(Repository):
         if 'period' in filters:
             clauses.extend(['t.occurred_at >= %s', 't.occurred_at < %s'])
             params.extend(filters['period'])
-        rows, total = self.page_rows(TX, clauses, params, page)
-        return ([model(Transaction, r) for r in rows], total)
+        return seek(self.db, TX, clauses, params, page,
+                    lambda rows: [model(Transaction, row) for row in rows], sort_prefix='t.')
 
     def _execute_command(self, actor, name, key, payload, perform):
         with self.db.connect() as conn:

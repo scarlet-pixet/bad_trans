@@ -74,6 +74,10 @@ def render_profile_comparison(call, group):
         second = choose_version(call, filters, scope + ":second", "Стало", 0)
     if not first or not second:
         return
+    render_saved_pair(call, first, second, scope)
+
+
+def render_saved_pair(call, first, second, scope):
     response = call(
         "query($a:ID!,$b:ID!){compareProfileVersions(firstId:$a,secondId:$b)}",
         dict(a=first, b=second),

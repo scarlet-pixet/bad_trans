@@ -1,0 +1,113 @@
+name: bad_trans_tls
+
+x-grpc-tls: &grpc-tls
+  NETWORK_MODE: TLS
+  GRPC_TLS_CA: /trust/ca.crt
+  GRPC_TLS_CERT: /leaf/server.crt
+  GRPC_TLS_KEY: /leaf/server.key
+
+services:
+  analysis-db:
+    ports: !reset []
+  auth-db:
+    ports: !reset []
+  case-db:
+    ports: !reset []
+  transaction-db:
+    ports: !reset []
+  redis:
+    ports: !reset []
+  cache:
+    ports: !reset []
+  kafka:
+    ports: !reset []
+    environment:
+      KAFKA_LISTENERS: INTERNAL://:9092,CONTROLLER://:9093
+      KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INTERNAL:PLAINTEXT,CONTROLLER:PLAINTEXT
+  kafka-ui:
+    ports: !reset []
+    profiles: [local-debug]
+  pgadmin:
+    ports: !reset []
+    profiles: [local-debug]
+  analysis-service:
+    ports: !reset []
+    environment:
+      <<: *grpc-tls
+      GRPC_HEALTH_TARGET: analysis-service:50051
+    volumes:
+      - ${TLS_DIR:?Set TLS_DIR to the directory created by tools/issue_tls.py}/ca.crt:/trust/ca.crt:ro
+      - ${TLS_DIR:?Set TLS_DIR to the directory created by tools/issue_tls.py}/leaves/analysis-service:/leaf:ro
+  transaction-service:
+    ports: !reset []
+    environment:
+      <<: *grpc-tls
+      GRPC_HEALTH_TARGET: transaction-service:50051
+    volumes:
+      - ${TLS_DIR:?Set TLS_DIR to the directory created by tools/issue_tls.py}/ca.crt:/trust/ca.crt:ro
+      - ${TLS_DIR:?Set TLS_DIR to the directory created by tools/issue_tls.py}/leaves/transaction-service:/leaf:ro
+  case-service:
+    ports: !reset []
+    environment:
+      <<: *grpc-tls
+      GRPC_HEALTH_TARGET: case-service:50051
+      AUTH_URL: https://auth-service:8001
+      REQUESTS_CA_BUNDLE: /trust/ca.crt
+    volumes:
+      - ${TLS_DIR:?Set TLS_DIR to the directory created by tools/issue_tls.py}/ca.crt:/trust/ca.crt:ro
+      - ${TLS_DIR:?Set TLS_DIR to the directory created by tools/issue_tls.py}/leaves/case-service:/leaf:ro
+  auth-service:
+    ports: !reset []
+    command: [uvicorn, backend.services.auth.transport.http:app, --host, 0.0.0.0, --port, '8001',
+              --ssl-certfile, /leaf/server.crt, --ssl-keyfile, /leaf/server.key]
+    environment:
+      <<: *grpc-tls
+    healthcheck:
+      test: [CMD, python, -m, backend.infrastructure.https_healthcheck, 'https://auth-service:8001/health', auth-service:50051]
+    volumes:
+      - ${TLS_DIR:?Set TLS_DIR to the directory created by tools/issue_tls.py}/ca.crt:/trust/ca.crt:ro
+      - ${TLS_DIR:?Set TLS_DIR to the directory created by tools/issue_tls.py}/leaves/auth-service:/leaf:ro
+  gateway:
+    ports: !reset []
+    command: [uvicorn, backend.gateway.app:app, --host, 0.0.0.0, --port, '8000',
+              --ssl-certfile, /leaf/server.crt, --ssl-keyfile, /leaf/server.key]
+    environment:
+      NETWORK_MODE: TLS
+      AUTH_URL: https://auth-service:8001
+      REQUESTS_CA_BUNDLE: /trust/ca.crt
+      GRPC_TLS_CA: /trust/ca.crt
+    healthcheck:
+      test: [CMD, python, -m, backend.infrastructure.https_healthcheck, 'https://gateway:8000/livez']
+    volumes:
+      - ${TLS_DIR:?Set TLS_DIR to the directory created by tools/issue_tls.py}/ca.crt:/trust/ca.crt:ro
+      - ${TLS_DIR:?Set TLS_DIR to the directory created by tools/issue_tls.py}/leaves/gateway:/leaf:ro
+  frontend:
+    ports: !reset []
+    environment:
+      NETWORK_MODE: TLS
+      GRAPHQL_URL: https://gateway:8000/graphql
+      PUBLIC_GATEWAY_URL: ""
+      REQUESTS_CA_BUNDLE: /trust/ca.crt
+      STREAMLIT_SERVER_SSL_CERT_FILE: /leaf/server.crt
+      STREAMLIT_SERVER_SSL_KEY_FILE: /leaf/server.key
+      STREAMLIT_BROWSER_SERVER_ADDRESS: ${TLS_PUBLIC_HOST:-localhost}
+      STREAMLIT_BROWSER_SERVER_PORT: ${TLS_PORT:-18443}
+    healthcheck:
+      test: [CMD, python, -m, backend.infrastructure.https_healthcheck, 'https://frontend:8501/_stcore/health']
+    volumes:
+      - ${TLS_DIR:?Set TLS_DIR to the directory created by tools/issue_tls.py}/ca.crt:/trust/ca.crt:ro
+      - ${TLS_DIR:?Set TLS_DIR to the directory created by tools/issue_tls.py}/leaves/frontend:/leaf:ro
+  edge:
+    image: nginx:1.28-alpine
+    depends_on:
+      frontend:
+        condition: service_healthy
+      gateway:
+        condition: service_healthy
+    ports:
+      - "${TLS_BIND_HOST:-127.0.0.1}:${TLS_PORT:-18443}:443"
+    volumes:
+      - ./infra/tls/edge.conf:/etc/nginx/conf.d/default.conf:ro
+      - ${TLS_DIR:?Set TLS_DIR to the directory created by tools/issue_tls.py}/ca.crt:/trust/ca.crt:ro
+      - ${TLS_DIR:?Set TLS_DIR to the directory created by tools/issue_tls.py}/leaves/edge:/leaf:ro

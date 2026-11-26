@@ -126,12 +126,24 @@ def test_bad_kafka_message_is_parked_and_next_message_is_processed():
     save('kafka-error-proof.json', {'failureId': str(failure['id']), 'attempts': failure['attempts'], 'error': 'ValidationError', 'deadLetterPublished': True, 'duplicateEventAddedResults': after - before, 'nextTransactionId': created['id'], 'nextResultId': str(result[0]['id'])})
 
 def test_broker_outage_preserves_outbox_then_completes_business_flow():
+    project = os.environ.get("BAD_TRANS_PROJECT")
+    if not project or project == "bad_trans":
+        pytest.skip("Kafka outage requires an explicitly isolated Compose project")
+
+    def case_kafka_ready():
+        response = requests.get(API.removesuffix("/graphql") + "/health", timeout=10)
+        case = next(service for service in response.json()["services"] if service["service"] == "case")
+        return case["kafkaReady"]
+
+    case_process = docker("inspect", "--format", "{{.Id}}|{{.State.StartedAt}}", "bad_trans-case-service-1")
+    wait_until(lambda: case_kafka_ready() is True)
     token = login()
     suffix = uuid4().hex
     tx = {'source': 'bad_trans_broker_outage', 'externalId': suffix, 'accountId': IDS['account'], 'counterpartyId': IDS['counterparty'], 'amount': '10000.00', 'currency': 'BYN', 'direction': 'OUT', 'occurredAt': '2026-09-30T11:50:00Z', 'idempotencyKey': suffix}
     mutation = 'mutation($x:TransactionInput!){registerTransaction(input:$x){id}}'
     try:
         docker('stop', 'bad_trans-kafka-1')
+        wait_until(lambda: case_kafka_ready() is False)
         created = graphql(mutation, {'x': tx}, token)['registerTransaction']
         assert graphql(mutation, {'x': tx}, token)['registerTransaction'] == created
         row = sql('transaction', "SELECT id,published_at FROM outbox_events WHERE payload->'payload'->>'transaction_id'=%s", (created['id'],))
@@ -139,10 +151,12 @@ def test_broker_outage_preserves_outbox_then_completes_business_flow():
         unaffected = graphql('query{me{login} transactionSummary{transactionCount}}', token=token)
     finally:
         docker('start', 'bad_trans-kafka-1')
+    wait_until(lambda: case_kafka_ready() is True, seconds=70)
+    assert docker("inspect", "--format", "{{.Id}}|{{.State.StartedAt}}", "bad_trans-case-service-1") == case_process
     case = wait_until(lambda: sql('case', 'SELECT id,latest_score FROM review_cases WHERE transaction_id=%s', (created['id'],)), seconds=70)[0]
     published = sql('transaction', "SELECT count(*) AS n FROM outbox_events WHERE payload->'payload'->>'transaction_id'=%s AND published_at IS NOT NULL", (created['id'],))[0]['n']
     assert published == 1
-    save('broker-recovery-proof.json', {'transactionId': created['id'], 'durablePendingOutbox': True, 'sameIdOnRepeat': True, 'onePublishedOutboxAfterRecovery': True, 'caseId': str(case['id']), 'score': case['latest_score'], 'independentOperationsDuringOutage': unaffected})
+    save('broker-recovery-proof.json', {'transactionId': created['id'], 'durablePendingOutbox': True, 'sameIdOnRepeat': True, 'onePublishedOutboxAfterRecovery': True, 'caseId': str(case['id']), 'score': case['latest_score'], 'independentOperationsDuringOutage': unaffected, 'caseKafkaReadiness': [True, False, True], 'sameCaseProcess': True})
 
 def test_exhausted_transient_event_resumes_automatically_after_recovery():
     proof = json.loads((EVIDENCE / 'live-proof.json').read_text())

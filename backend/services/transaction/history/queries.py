@@ -1,4 +1,4 @@
-from backend.common.data import uuid, period, currency, money, pagination, paged, DomainError
+from backend.common.navigation import navigation
 from datetime import datetime
 from decimal import Decimal, InvalidOperation
 from uuid import uuid4
@@ -13,12 +13,15 @@ class TransactionQueries:
     def get_transaction(self, id):
         return self.repository.transaction(uuid(id))
 
-    def search_clients(self, filter=None, page=None):
-        spec = pagination(page, {'id': 'id', 'displayName': 'display_name', 'externalId': 'external_id'}, 'id')
-        rows, total = self.repository.clients(filter or {}, spec)
-        return paged(rows, total, spec, page)
+    def search_clients(self, filter=None, page=None, *, actor):
+        require_role(actor, 'MANAGER', 'ADMIN', 'SYSTEM')
+        filters = filter or {}
+        spec = navigation(page, {'id': 'id', 'displayName': 'display_name', 'externalId': 'external_id'},
+                          'id', actor=actor, owner='clients', filters=filters)
+        return self.repository.clients(filters, spec)
 
-    def search_transactions(self, filter=None, page=None):
+    def search_transactions(self, filter=None, page=None, *, actor):
+        require_role(actor, 'MANAGER', 'ADMIN', 'SYSTEM')
         filters = dict(filter or {})
         if 'clientId' in filters:
             filters['clientId'] = uuid(filters['clientId'])
@@ -33,9 +36,9 @@ class TransactionQueries:
                 filters[key] = money(filters[key])
         if 'amountFrom' in filters and 'amountTo' in filters and (filters['amountFrom'] > filters['amountTo']):
             raise DomainError('BAD_INPUT', 'amountFrom > amountTo')
-        spec = pagination(page, {'id': 'id', 'occurredAt': 'occurred_at', 'amount': 'amount'}, 'occurredAt')
-        rows, total = self.repository.transactions(filters, spec)
-        return paged(rows, total, spec, page)
+        spec = navigation(page, {'id': 'id', 'occurredAt': 'occurred_at', 'amount': 'amount'},
+                          'occurredAt', actor=actor, owner='transactions', filters=filters)
+        return self.repository.transactions(filters, spec)
 
     def transaction_summary(self, filter=None):
         filters = dict(filter or {})

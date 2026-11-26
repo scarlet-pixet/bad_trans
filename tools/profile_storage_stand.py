@@ -70,7 +70,8 @@ def create(directory):
     path = directory / "stand.json"
     path.write_text(json.dumps(stand), encoding="utf-8")
     # Save the cleanup handle before initialization, including on init failure.
-    for _ in range(40):
+    deadline = time.monotonic() + 60
+    while time.monotonic() < deadline:
         try:
             admin = psycopg.connect(
                 **{k: v for k, v in stand.items() if k != "container"},

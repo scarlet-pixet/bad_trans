@@ -52,6 +52,9 @@ message Transaction {
   string direction = 9;
   google.protobuf.Timestamp occurred_at = 10;
   google.protobuf.Timestamp ingested_at = 11;
+  optional string time_precision = 12;
+  optional string operation_kind = 13;
+  optional string operation_channel = 14;
 }
 
 message ImportError {
@@ -208,24 +211,28 @@ message ClientPage {
   repeated Client items = 1;
   optional string next_cursor = 2;
   int32 total_count = 3;
+  optional string current_cursor = 4;
 }
 
 message TransactionPage {
   repeated Transaction items = 1;
   optional string next_cursor = 2;
   int32 total_count = 3;
+  optional string current_cursor = 4;
 }
 
 message CasePage {
   repeated ReviewCase items = 1;
   optional string next_cursor = 2;
   int32 total_count = 3;
+  optional string current_cursor = 4;
 }
 
 message NotificationPage {
   repeated Notification items = 1;
   optional string next_cursor = 2;
   int32 total_count = 3;
+  optional string current_cursor = 4;
 }
 
 message PeriodInput {
@@ -284,6 +291,7 @@ message TransactionInput {
   string direction = 7;
   google.protobuf.Timestamp occurred_at = 8;
   string idempotency_key = 9;
+  optional string time_precision = 10;
 }
 
 message ImportBatchInput {
